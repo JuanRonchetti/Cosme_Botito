@@ -11,52 +11,34 @@ import matplotlib.pyplot as plt
 # ============================================================
 
 CONFIG = {
-    # --- DENSIDAD DE PALABRAS OFENSIVAS ---
-    # 0.2 por cada palabra ofensiva.
-
-    # Trapezoidal: (a, b, c, d) donde b-c es la zona plana en grado 1
     'densidad': {
-        'bajo':  {'tipo': 'trapezoidal', 'params': (0.0, 0.0,  0.1,  0.2)},
-        'medio': {'tipo': 'trapezoidal', 'params': (0.1, 0.2, 0.4, 0.5)},
-        'alto':  {'tipo': 'trapezoidal', 'params': (0.4, 0.6, 1, 1)},
+        'bajo':  {'tipo': 'trapezoidal', 'params': (0.0,  0.0,  0.25, 0.50)},
+        'medio': {'tipo': 'trapezoidal', 'params': (0.25, 0.40, 0.60, 0.75)},
+        'alto':  {'tipo': 'trapezoidal', 'params': (0.50, 0.75, 1.0,  1.0)},
     },
 
-    # --- HATE SPEECH (pysentimiento) ---
-    # 0 a 1 siendo 1 el mensaje más ofensivo según el modelo de ML.
-
-    # Trapezoidal: (a, b, c, d) donde b-c es la zona plana en grado 1
     'hate': {
-        'bajo':  {'tipo': 'trapezoidal', 'params': (0.0, 0.0,  0.1,  0.2)},
-        'medio': {'tipo': 'trapezoidal', 'params': (0.1, 0.1, 0.2, 0.3)},
-        'alto':  {'tipo': 'trapezoidal', 'params': (0.2, 0.25, 1.0, 1.0)},
+        'bajo':  {'tipo': 'trapezoidal', 'params': (0.0,  0.0,  0.05, 0.12)},
+        'medio': {'tipo': 'trapezoidal', 'params': (0.05, 0.12, 0.20, 0.28)},
+        'alto':  {'tipo': 'trapezoidal', 'params': (0.20, 0.28, 1.0,  1.0)},
     },
 
-    # --- HISTORIAL DE INFRACCIONES ---
-    # 0.15 por cada infraccion previa.
-
-    # Trapezoidal: (a, b, c, d) donde b-c es la zona plana en grado 1
     'historial': {
-        'limpio':       {'tipo': 'trapezoidal', 'params': (0.0, 0.0,  0.1,  0.25)},
-        'antecedentes': {'tipo': 'trapezoidal', 'params': (0.2, 0.35, 0.55, 0.7)},
-        'reincidente':  {'tipo': 'trapezoidal', 'params': (0.6, 0.8,  1.0,  1.0)},
+        'limpio':       {'tipo': 'trapezoidal', 'params': (0.0,  0.0,  0.15, 0.30)},
+        'antecedentes': {'tipo': 'trapezoidal', 'params': (0.20, 0.35, 0.55, 0.70)},
+        'reincidente':  {'tipo': 'trapezoidal', 'params': (0.60, 0.75, 1.0,  1.0)},
     },
 
-    # --- VELOCIDAD DE MENSAJES ---
-    # 0 a 1 siendo 1 mas de 10 mensajes en 30 segundos.
-
-    # Triangular: (inicio, pico, fin)
     'velocidad': {
-        'normal': {'tipo': 'triangular', 'params': (0.0, 0.0,  0.4)},
-        'rapido': {'tipo': 'triangular', 'params': (0.3, 0.55, 0.75)},
-        'flood':  {'tipo': 'triangular', 'params': (0.7, 1.0,  1.0)},
+        'normal': {'tipo': 'trapezoidal', 'params': (0.0,  0.0,  0.25, 0.50)},
+        'rapido': {'tipo': 'trapezoidal', 'params': (0.25, 0.40, 0.60, 0.75)},
+        'flood':  {'tipo': 'trapezoidal', 'params': (0.50, 0.75, 1.0,  1.0)},
     },
 
-    # --- TOXICIDAD (salida) ---
-    # Sigmoidea para los extremos, gaussiana para el medio
     'toxicidad': {
-        'baja':  {'tipo': 'sigmoidea_inv', 'params': (12, 0.25)},
-        'media': {'tipo': 'gaussiana',     'params': (0.5, 0.12)},
-        'alta':  {'tipo': 'sigmoidea',     'params': (12, 0.75)},
+        'baja':  {'tipo': 'trapezoidal', 'params': (0.0,  0.0,  0.15, 0.35)},
+        'media': {'tipo': 'trapezoidal', 'params': (0.25, 0.38, 0.52, 0.65)},
+        'alta':  {'tipo': 'trapezoidal', 'params': (0.45, 0.60, 1.0,  1.0)},
     },
 }
 
@@ -123,19 +105,26 @@ for nombre_var, variable in variables.items():
 # ============================================================
 
 reglas = [
-    ctrl.Rule(densidad['alto'] & hate['alto'],              toxicidad['alta']),
-    ctrl.Rule(densidad['alto'] & historial['reincidente'],  toxicidad['alta']),
-    ctrl.Rule(hate['alto']     & historial['reincidente'],  toxicidad['alta']),
-    ctrl.Rule(densidad['alto'] & velocidad['flood'],        toxicidad['alta']),
-    ctrl.Rule(densidad['medio']& historial['reincidente'],  toxicidad['alta']),
-    ctrl.Rule(hate['medio']    & historial['reincidente'],  toxicidad['alta']),
-    ctrl.Rule(densidad['alto'] & hate['bajo'],              toxicidad['media']),
-    ctrl.Rule(densidad['medio']& hate['medio'],             toxicidad['media']),
-    ctrl.Rule(densidad['medio']& historial['antecedentes'], toxicidad['media']),
-    ctrl.Rule(hate['medio']    & historial['antecedentes'], toxicidad['media']),
-    ctrl.Rule(densidad['bajo'] & hate['alto'],              toxicidad['media']),
-    ctrl.Rule(densidad['bajo'] & hate['bajo'] & historial['limpio'],  toxicidad['baja']),
-    ctrl.Rule(densidad['bajo'] & hate['bajo'] & velocidad['normal'],  toxicidad['baja']),
+    # ── TOXICIDAD ALTA ──────────────────────────────────────────
+    # Densidad muy alta (necesita ser realmente alto, no medio-alto)
+    ctrl.Rule(hate['alto'], toxicidad['alta']),
+    ctrl.Rule(densidad['alto'] & hate['medio'],                toxicidad['alta']),
+    ctrl.Rule(densidad['alto'] & historial['antecedentes'],    toxicidad['alta']),
+    ctrl.Rule(hate['alto'],                                    toxicidad['alta']),
+    ctrl.Rule(densidad['medio'] & historial['reincidente'],    toxicidad['alta']),
+    ctrl.Rule(hate['medio']     & historial['reincidente'],    toxicidad['alta']),
+    ctrl.Rule(densidad['medio'] & velocidad['flood'],          toxicidad['alta']),
+    ctrl.Rule(hate['medio']     & velocidad['flood'],          toxicidad['alta']),
+
+    # ── TOXICIDAD MEDIA ─────────────────────────────────────────
+    ctrl.Rule(densidad['alto'],                                toxicidad['media']),
+    ctrl.Rule(densidad['medio'] & hate['bajo'],  toxicidad['media']),
+    ctrl.Rule(densidad['medio'] & hate['medio'], toxicidad['media']),
+    ctrl.Rule(densidad['bajo']  & hate['alto'],                toxicidad['media']),
+    ctrl.Rule(hate['medio']     & historial['antecedentes'],   toxicidad['media']),
+
+    # ── TOXICIDAD BAJA ──────────────────────────────────────────
+    ctrl.Rule(densidad['bajo']  & hate['bajo'],                toxicidad['baja']),
 ]
 
 sistema_control = ctrl.ControlSystem(reglas)
@@ -150,8 +139,16 @@ def calcular_score_difuso(dens, hate_score, hist, vel):
     sim.input['hate']      = hate_score
     sim.input['historial'] = hist
     sim.input['velocidad'] = vel
-    sim.compute()
-    return sim.output['toxicidad']
+
+    # Debug: grados de pertenencia
+    print(f"    densidad  → bajo:{fuzz.interp_membership(densidad.universe, densidad['bajo'].mf, dens):.2f} medio:{fuzz.interp_membership(densidad.universe, densidad['medio'].mf, dens):.2f} alto:{fuzz.interp_membership(densidad.universe, densidad['alto'].mf, dens):.2f}")
+    print(f"    hate      → bajo:{fuzz.interp_membership(hate.universe, hate['bajo'].mf, hate_score):.2f} medio:{fuzz.interp_membership(hate.universe, hate['medio'].mf, hate_score):.2f} alto:{fuzz.interp_membership(hate.universe, hate['alto'].mf, hate_score):.2f}")
+
+    try:
+        sim.compute()
+        return sim.output['toxicidad']
+    except KeyError:
+        return 0.05
 
 def decidir_accion(score):
     if score < UMBRALES['ignorar']:

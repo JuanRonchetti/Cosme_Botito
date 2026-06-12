@@ -36,13 +36,17 @@ ruta_patrones = ruta_actual.parent.parent / 'config' / 'patrones.txt'
 #     return patrones
 
 def detectar_patrones(texto):
-    texto = texto.lower()
-
+    texto = normalizar(texto)
     with open(ruta_patrones, "r", encoding="utf-8") as f:
         patrones = [linea.strip() for linea in f if linea.strip()]
-
-    matches = sum(1 for p in patrones if re.search(p, texto))
-    return min(matches / 3, 1.0)
+    palabras = texto.split()
+    longitud = max(len(palabras), 1)
+    matches_lista = [p for p in patrones if re.search(p, texto)]
+    matches = len(matches_lista)
+    print(f"  matches ({matches}): {matches_lista}")
+    densidad_real = matches / longitud
+    print(f"  longitud: {longitud}, matches: {matches}, densidad_real: {densidad_real:.2f}, normalizada: {min(densidad_real/0.5, 1.0):.2f}")
+    return min(densidad_real / 0.5, 1.0)
 
 analyzer = create_analyzer(task="hate_speech", lang="es")
 
