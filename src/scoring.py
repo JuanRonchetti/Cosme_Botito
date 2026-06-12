@@ -107,10 +107,11 @@ for nombre_var, variable in variables.items():
 reglas = [
     # ── TOXICIDAD ALTA ──────────────────────────────────────────
     # Densidad muy alta (necesita ser realmente alto, no medio-alto)
-    ctrl.Rule(hate['alto'], toxicidad['alta']),
+    ctrl.Rule(hate['alto'] & densidad['bajo'],  toxicidad['media']),  # hate alto pero sin palabras → media
+    ctrl.Rule(hate['alto'] & densidad['medio'], toxicidad['alta']),
+    ctrl.Rule(hate['alto'] & densidad['alto'],  toxicidad['alta']),
     ctrl.Rule(densidad['alto'] & hate['medio'],                toxicidad['alta']),
     ctrl.Rule(densidad['alto'] & historial['antecedentes'],    toxicidad['alta']),
-    ctrl.Rule(hate['alto'],                                    toxicidad['alta']),
     ctrl.Rule(densidad['medio'] & historial['reincidente'],    toxicidad['alta']),
     ctrl.Rule(hate['medio']     & historial['reincidente'],    toxicidad['alta']),
     ctrl.Rule(densidad['medio'] & velocidad['flood'],          toxicidad['alta']),
