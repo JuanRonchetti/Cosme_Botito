@@ -26,8 +26,8 @@ from src.scoring import graficar_membresias
 # print(f"Score: {score:.2f}")  # esperás algo alto por el historial
 
 casos_prueba = [
-    {"texto": "Feliz día de chupar pijas", "hist": 0.0, "vel": 0.1, "esperado": 0.7},
-    {"texto": "Hola cómo están todos",     "hist": 0.0, "vel": 0.1, "esperado": 0.1},
+    {"texto": "Feliz día de chupar pijas", "hist": 0.15, "vel": 0.0, "esperado": 0.7},
+    {"texto": "Hola cómo están todos",     "hist": 0.0, "vel": 0.2, "esperado": 0.1},
     {"texto": "negro de mierda",           "hist": 0.0, "vel": 0.1, "esperado": 0.9},
     # etc
 ]

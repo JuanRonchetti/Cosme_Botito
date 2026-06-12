@@ -12,15 +12,18 @@ import matplotlib.pyplot as plt
 
 CONFIG = {
     # --- DENSIDAD DE PALABRAS OFENSIVAS ---
-    # Gaussiana: (media, desviacion_estandar)
+    # 0.2 por cada palabra ofensiva.
+
+    # Trapezoidal: (a, b, c, d) donde b-c es la zona plana en grado 1
     'densidad': {
-        'bajo':  {'tipo': 'gaussiana', 'params': (0.0,  0.15)},
-        'medio': {'tipo': 'gaussiana', 'params': (0.4,  0.12)},
-        'alto':  {'tipo': 'gaussiana', 'params': (0.85, 0.12)},
+        'bajo':  {'tipo': 'trapezoidal', 'params': (0.0, 0.0,  0.1,  0.2)},
+        'medio': {'tipo': 'trapezoidal', 'params': (0.1, 0.2, 0.4, 0.5)},
+        'alto':  {'tipo': 'trapezoidal', 'params': (0.4, 0.6, 1, 1)},
     },
 
     # --- HATE SPEECH (pysentimiento) ---
-    # Scores bajos son lo normal, por eso las categorías están comprimidas a la izquierda
+    # 0 a 1 siendo 1 el mensaje más ofensivo según el modelo de ML.
+
     # Trapezoidal: (a, b, c, d) donde b-c es la zona plana en grado 1
     'hate': {
         'bajo':  {'tipo': 'trapezoidal', 'params': (0.0, 0.0,  0.1,  0.2)},
@@ -29,6 +32,8 @@ CONFIG = {
     },
 
     # --- HISTORIAL DE INFRACCIONES ---
+    # 0.15 por cada infraccion previa.
+
     # Trapezoidal: (a, b, c, d) donde b-c es la zona plana en grado 1
     'historial': {
         'limpio':       {'tipo': 'trapezoidal', 'params': (0.0, 0.0,  0.1,  0.25)},
@@ -37,6 +42,8 @@ CONFIG = {
     },
 
     # --- VELOCIDAD DE MENSAJES ---
+    # 0 a 1 siendo 1 mas de 10 mensajes en 30 segundos.
+
     # Triangular: (inicio, pico, fin)
     'velocidad': {
         'normal': {'tipo': 'triangular', 'params': (0.0, 0.0,  0.4)},
