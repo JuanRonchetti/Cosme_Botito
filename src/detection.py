@@ -32,13 +32,13 @@ ruta_patrones = ruta_actual.parent.parent / 'config' / 'patrones.txt'
 
 # def cargar_patrones(ruta_archivo=ruta_patrones):
 #     with open(ruta_archivo, "r", encoding="utf-8") as f:
-#         patrones = [linea.strip() for linea in f if linea.strip()]
+#         patrones = [linea.strip() for linea in f if linea.strip() and not linea.strip().startswith('#')]
 #     return patrones
 
 def detectar_patrones(texto):
     texto = normalizar(texto)
     with open(ruta_patrones, "r", encoding="utf-8") as f:
-        patrones = [linea.strip() for linea in f if linea.strip()]
+        patrones = [linea.strip() for linea in f if linea.strip() and not linea.strip().startswith('#')]
     palabras = texto.split()
     longitud = max(len(palabras), 1)
     matches_lista = [p for p in patrones if re.search(p, texto)]

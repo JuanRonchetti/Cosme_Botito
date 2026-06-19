@@ -12,33 +12,38 @@ import matplotlib.pyplot as plt
 
 CONFIG = {
     'densidad': {
-        'bajo':  {'tipo': 'trapezoidal', 'params': (0.0,  0.0,  0.25, 0.50)},
-        'medio': {'tipo': 'trapezoidal', 'params': (0.25, 0.40, 0.60, 0.75)},
-        'alto':  {'tipo': 'trapezoidal', 'params': (0.50, 0.75, 1.0,  1.0)},
+        'bajo':     {'tipo': 'trapezoidal', 'params': (0.00, 0.00, 0.15, 0.30)},
+        'medio':    {'tipo': 'trapezoidal', 'params': (0.15, 0.28, 0.45, 0.58)},
+        'alto':     {'tipo': 'trapezoidal', 'params': (0.45, 0.58, 0.78, 0.90)},
+        'muy_alto': {'tipo': 'trapezoidal', 'params': (0.78, 0.90, 1.00, 1.00)},
     },
 
     'hate': {
-        'bajo':  {'tipo': 'trapezoidal', 'params': (0.0,  0.0,  0.05, 0.12)},
-        'medio': {'tipo': 'trapezoidal', 'params': (0.05, 0.12, 0.20, 0.28)},
-        'alto':  {'tipo': 'trapezoidal', 'params': (0.20, 0.28, 1.0,  1.0)},
+        'bajo':     {'tipo': 'trapezoidal', 'params': (0.00, 0.00, 0.05, 0.12)},
+        'medio':    {'tipo': 'trapezoidal', 'params': (0.05, 0.12, 0.22, 0.32)},
+        'alto':     {'tipo': 'trapezoidal', 'params': (0.22, 0.32, 0.50, 0.65)},
+        'muy_alto': {'tipo': 'trapezoidal', 'params': (0.50, 0.65, 1.00, 1.00)},
     },
 
     'historial': {
-        'limpio':       {'tipo': 'trapezoidal', 'params': (0.0,  0.0,  0.15, 0.30)},
-        'antecedentes': {'tipo': 'trapezoidal', 'params': (0.20, 0.35, 0.55, 0.70)},
-        'reincidente':  {'tipo': 'trapezoidal', 'params': (0.60, 0.75, 1.0,  1.0)},
+        'limpio':       {'tipo': 'trapezoidal', 'params': (0.00, 0.00, 0.12, 0.25)},
+        'antecedentes': {'tipo': 'trapezoidal', 'params': (0.12, 0.25, 0.42, 0.55)},
+        'reincidente':  {'tipo': 'trapezoidal', 'params': (0.42, 0.55, 0.72, 0.85)},
+        'cronico':      {'tipo': 'trapezoidal', 'params': (0.72, 0.85, 1.00, 1.00)},
     },
 
     'velocidad': {
-        'normal': {'tipo': 'trapezoidal', 'params': (0.0,  0.0,  0.25, 0.50)},
-        'rapido': {'tipo': 'trapezoidal', 'params': (0.25, 0.40, 0.60, 0.75)},
-        'flood':  {'tipo': 'trapezoidal', 'params': (0.50, 0.75, 1.0,  1.0)},
+        'normal': {'tipo': 'trapezoidal', 'params': (0.00, 0.00, 0.15, 0.30)},
+        'rapido': {'tipo': 'trapezoidal', 'params': (0.15, 0.28, 0.45, 0.58)},
+        'flood':  {'tipo': 'trapezoidal', 'params': (0.45, 0.58, 0.78, 0.90)},
+        'spam':   {'tipo': 'trapezoidal', 'params': (0.78, 0.90, 1.00, 1.00)},
     },
 
     'toxicidad': {
-        'baja':  {'tipo': 'trapezoidal', 'params': (0.0,  0.0,  0.15, 0.35)},
-        'media': {'tipo': 'trapezoidal', 'params': (0.25, 0.38, 0.52, 0.65)},
-        'alta':  {'tipo': 'trapezoidal', 'params': (0.45, 0.60, 1.0,  1.0)},
+        'baja':    {'tipo': 'trapezoidal', 'params': (0.00, 0.00, 0.18, 0.33)},
+        'media':   {'tipo': 'trapezoidal', 'params': (0.18, 0.30, 0.48, 0.60)},
+        'alta':    {'tipo': 'trapezoidal', 'params': (0.48, 0.60, 0.78, 0.88)},
+        'extrema': {'tipo': 'trapezoidal', 'params': (0.78, 0.88, 1.00, 1.00)},
     },
 }
 
@@ -105,27 +110,50 @@ for nombre_var, variable in variables.items():
 # ============================================================
 
 reglas = [
-    # ── TOXICIDAD ALTA ──────────────────────────────────────────
-    # Densidad muy alta (necesita ser realmente alto, no medio-alto)
-    ctrl.Rule(hate['alto'] & densidad['bajo'],  toxicidad['media']),  # hate alto pero sin palabras → media
-    ctrl.Rule(hate['alto'] & densidad['medio'], toxicidad['alta']),
-    ctrl.Rule(hate['alto'] & densidad['alto'],  toxicidad['alta']),
-    ctrl.Rule(densidad['alto'] & hate['medio'],                toxicidad['alta']),
-    ctrl.Rule(densidad['alto'] & historial['antecedentes'],    toxicidad['alta']),
+    # ── EXTREMA ─────────────────────────────────────────────────
+    ctrl.Rule(hate['muy_alto'] & densidad['muy_alto'],         toxicidad['extrema']),
+    ctrl.Rule(hate['muy_alto'] & densidad['alto'],             toxicidad['extrema']),
+    ctrl.Rule(hate['alto']     & densidad['muy_alto'],         toxicidad['extrema']),
+    ctrl.Rule(hate['muy_alto'] & historial['cronico'],         toxicidad['extrema']),
+    ctrl.Rule(hate['alto']     & historial['cronico'],         toxicidad['extrema']),
+    ctrl.Rule(densidad['muy_alto'] & historial['cronico'],     toxicidad['extrema']),
+    ctrl.Rule(hate['muy_alto'] & velocidad['spam'],            toxicidad['extrema']),
+    ctrl.Rule(densidad['muy_alto'] & velocidad['spam'],        toxicidad['extrema']),
+
+    # ── ALTA ────────────────────────────────────────────────────
+    ctrl.Rule(hate['alto']     & densidad['alto'],             toxicidad['alta']),
+    ctrl.Rule(hate['alto']     & densidad['medio'],            toxicidad['alta']),
+    ctrl.Rule(hate['muy_alto'] & densidad['medio'],            toxicidad['alta']),
+    ctrl.Rule(hate['muy_alto'] & densidad['bajo'],             toxicidad['alta']),
+    ctrl.Rule(densidad['muy_alto'] & hate['medio'],            toxicidad['alta']),
+    ctrl.Rule(densidad['muy_alto'] & hate['bajo'],             toxicidad['alta']),
+    ctrl.Rule(densidad['alto'] & historial['reincidente'],     toxicidad['alta']),
+    ctrl.Rule(densidad['alto'] & historial['cronico'],         toxicidad['alta']),
     ctrl.Rule(densidad['medio'] & historial['reincidente'],    toxicidad['alta']),
-    ctrl.Rule(hate['medio']     & historial['reincidente'],    toxicidad['alta']),
+    ctrl.Rule(densidad['medio'] & historial['cronico'],        toxicidad['alta']),
+    ctrl.Rule(hate['medio']    & historial['reincidente'],     toxicidad['alta']),
+    ctrl.Rule(hate['medio']    & historial['cronico'],         toxicidad['alta']),
+    ctrl.Rule(hate['alto']     & historial['reincidente'],     toxicidad['alta']),
+    ctrl.Rule(densidad['alto'] & velocidad['flood'],           toxicidad['alta']),
+    ctrl.Rule(densidad['alto'] & velocidad['spam'],            toxicidad['alta']),
+    ctrl.Rule(hate['medio']    & velocidad['flood'],           toxicidad['alta']),
+    ctrl.Rule(hate['medio']    & velocidad['spam'],            toxicidad['alta']),
     ctrl.Rule(densidad['medio'] & velocidad['flood'],          toxicidad['alta']),
-    ctrl.Rule(hate['medio']     & velocidad['flood'],          toxicidad['alta']),
+    ctrl.Rule(densidad['medio'] & velocidad['spam'],           toxicidad['alta']),
 
-    # ── TOXICIDAD MEDIA ─────────────────────────────────────────
-    ctrl.Rule(densidad['alto'],                                toxicidad['media']),
-    ctrl.Rule(densidad['medio'] & hate['bajo'],  toxicidad['media']),
-    ctrl.Rule(densidad['medio'] & hate['medio'], toxicidad['media']),
-    ctrl.Rule(densidad['bajo']  & hate['alto'],                toxicidad['media']),
-    ctrl.Rule(hate['medio']     & historial['antecedentes'],   toxicidad['media']),
+    # ── MEDIA ───────────────────────────────────────────────────
+    ctrl.Rule(densidad['alto']   & hate['bajo'],               toxicidad['media']),
+    ctrl.Rule(densidad['medio']  & hate['medio'],              toxicidad['media']),
+    ctrl.Rule(densidad['medio']  & hate['bajo'],               toxicidad['media']),
+    ctrl.Rule(hate['alto']       & densidad['bajo'],           toxicidad['media']),
+    ctrl.Rule(hate['medio']      & historial['antecedentes'],  toxicidad['media']),
+    ctrl.Rule(densidad['bajo']   & historial['antecedentes'],  toxicidad['media']),
+    ctrl.Rule(velocidad['flood'] & densidad['bajo'],           toxicidad['media']),
+    ctrl.Rule(velocidad['rapido'] & hate['medio'],             toxicidad['media']),
+    ctrl.Rule(velocidad['rapido'] & densidad['medio'],         toxicidad['media']),
 
-    # ── TOXICIDAD BAJA ──────────────────────────────────────────
-    ctrl.Rule(densidad['bajo']  & hate['bajo'],                toxicidad['baja']),
+    # ── BAJA ────────────────────────────────────────────────────
+    ctrl.Rule(densidad['bajo']   & hate['bajo'],               toxicidad['baja']),
 ]
 
 sistema_control = ctrl.ControlSystem(reglas)
@@ -134,16 +162,16 @@ sistema_control = ctrl.ControlSystem(reglas)
 # FUNCIÓN PRINCIPAL DE SCORING
 # ============================================================
 
-def calcular_score_difuso(dens, hate_score, hist, vel):
+def calcular_score_difuso(dens, hate_score, hist, vel, debug=True):
     sim = ctrl.ControlSystemSimulation(sistema_control)
     sim.input['densidad']  = dens
     sim.input['hate']      = hate_score
     sim.input['historial'] = hist
     sim.input['velocidad'] = vel
 
-    # Debug: grados de pertenencia
-    print(f"    densidad  → bajo:{fuzz.interp_membership(densidad.universe, densidad['bajo'].mf, dens):.2f} medio:{fuzz.interp_membership(densidad.universe, densidad['medio'].mf, dens):.2f} alto:{fuzz.interp_membership(densidad.universe, densidad['alto'].mf, dens):.2f}")
-    print(f"    hate      → bajo:{fuzz.interp_membership(hate.universe, hate['bajo'].mf, hate_score):.2f} medio:{fuzz.interp_membership(hate.universe, hate['medio'].mf, hate_score):.2f} alto:{fuzz.interp_membership(hate.universe, hate['alto'].mf, hate_score):.2f}")
+    if debug:
+        print(f"    densidad  → bajo:{fuzz.interp_membership(densidad.universe, densidad['bajo'].mf, dens):.2f} medio:{fuzz.interp_membership(densidad.universe, densidad['medio'].mf, dens):.2f} alto:{fuzz.interp_membership(densidad.universe, densidad['alto'].mf, dens):.2f} muy_alto:{fuzz.interp_membership(densidad.universe, densidad['muy_alto'].mf, dens):.2f}")
+        print(f"    hate      → bajo:{fuzz.interp_membership(hate.universe, hate['bajo'].mf, hate_score):.2f} medio:{fuzz.interp_membership(hate.universe, hate['medio'].mf, hate_score):.2f} alto:{fuzz.interp_membership(hate.universe, hate['alto'].mf, hate_score):.2f} muy_alto:{fuzz.interp_membership(hate.universe, hate['muy_alto'].mf, hate_score):.2f}")
 
     try:
         sim.compute()
@@ -174,7 +202,7 @@ TITULOS = {
     'toxicidad': 'Toxicidad (salida)',
 }
 
-def graficar_membresias():
+def graficar_membresias(ruta='membresias.png', mostrar=True):
     fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(15, 8))
     fig.suptitle('Funciones de Membresía del Sistema Difuso', fontsize=14)
 
@@ -213,6 +241,9 @@ def graficar_membresias():
                  transform=ax_info.transAxes)
 
     plt.tight_layout()
-    plt.savefig('membresias.png', dpi=150, bbox_inches='tight')
-    plt.show()
-    print("Guardado como membresias.png")
+    plt.savefig(ruta, dpi=150, bbox_inches='tight')
+    if mostrar:
+        plt.show()
+    else:
+        plt.close()
+    print(f"Guardado como {ruta}")
