@@ -7,12 +7,11 @@ import os
 import re
 import unicodedata
 from datetime import datetime
-from collections import defaultdict
 import time as _time
 
-from src.scoring import calcular_score_difuso, graficar_membresias
-from src.analisis import grafico_validacion, grafico_confusion_roc, grafico_sensibilidad, grafico_tiempos, leer_csv
-from pysentimiento import create_analyzer
+from src.scoring import calcular_score_difuso, graficar_membresias, etiquetar_inputs, etiquetar_output
+from src.analisis import grafico_validacion, grafico_confusion_roc, grafico_sensibilidad, grafico_tiempos, leer_csv, analizar_testing
+from src.modelos import score_conicet, score_detoxify
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -24,11 +23,8 @@ load_dotenv()
 TOKEN        = os.getenv("DISCORD_TOKEN")
 CANAL_LOG_ID = None          # None = todos los canales
 ARCHIVO_LOG  = "logs/mensajes.csv"
-UMBRAL_LOG   = 0.0           # 0.0 = loguear todo
 
 os.makedirs("logs", exist_ok=True)
-
-analyzer = create_analyzer(task="hate_speech", lang="es")
 
 ruta_patrones = "config/patrones.txt"
 
@@ -50,22 +46,21 @@ HEADERS = [
     "mensaje_original", "mensaje_normalizado",
     "matches_lista", "longitud_palabras",
     "densidad_real", "densidad_norm",
-    "hate_hateful", "hate_targeted", "hate_aggressive", "hate_max",
-    "historial", "velocidad",
-    "score_obtenido", "score_esperado",
-    "accion_sugerida", "tiempo_ms",
+    "conicet_score", "detoxify_score",
+    "historial", "score_obtenido",
+    "score_esperado", "accion_sugerida", "tiempo_ms",
 ]
 
-# Headers del schema anterior (sin tiempo_ms), para migrar CSVs sin header
+# Headers del schema anterior con hate/velocidad, para migrar CSVs de versiones previas
 HEADERS_LEGACY = [
-    "timestamp", "autor_id", "autor_nombre", "canal",
+    "timestamp", "tipo", "autor_id", "autor_nombre", "canal",
     "mensaje_original", "mensaje_normalizado",
     "matches_lista", "longitud_palabras",
     "densidad_real", "densidad_norm",
     "hate_hateful", "hate_targeted", "hate_aggressive", "hate_max",
     "historial", "velocidad",
     "score_obtenido", "score_esperado",
-    "accion_sugerida",
+    "accion_sugerida", "tiempo_ms",
 ]
 
 def inicializar_csv():
@@ -108,9 +103,34 @@ def inicializar_csv():
 
 def guardar_log(row):
     with open(ARCHIVO_LOG, "a", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=HEADERS)
-        writer.writerow(row)
+        csv.DictWriter(f, fieldnames=HEADERS).writerow(row)
 
+# ============================================================
+# CSV DE TESTING (feedback de usuario via botones)
+# ============================================================
+
+ARCHIVO_TESTING = "logs/testing.csv"
+
+HEADERS_TESTING = [
+    "timestamp_mensaje", "timestamp_feedback",
+    "autor_id", "autor_nombre", "canal",
+    "mensaje_original",
+    "lista_negra_score", "lista_negra_cat",
+    "conicet_score",     "conicet_cat",
+    "detoxify_score",    "detoxify_cat",
+    "historial_score",   "historial_cat",
+    "score_difuso",      "cat_difusa",
+    "cat_esperada",
+]
+
+def inicializar_testing_csv():
+    if not os.path.exists(ARCHIVO_TESTING):
+        with open(ARCHIVO_TESTING, "w", newline="", encoding="utf-8") as f:
+            csv.DictWriter(f, fieldnames=HEADERS_TESTING).writeheader()
+
+def guardar_testing(row):
+    with open(ARCHIVO_TESTING, "a", newline="", encoding="utf-8") as f:
+        csv.DictWriter(f, fieldnames=HEADERS_TESTING).writerow(row)
 
 # ============================================================
 # PROCESAMIENTO DE MENSAJES
@@ -136,24 +156,12 @@ def detectar_patrones_detallado(texto_norm):
     dens_norm = min(dens_real / 0.5, 1.0)
     return matches, longitud, dens_real, dens_norm
 
-def hate_detallado(texto_original):
-    resultado  = analyzer.predict(texto_original)
-    hateful    = resultado.probas["hateful"]
-    targeted   = resultado.probas["targeted"]
-    aggressive = resultado.probas["aggressive"]
-    return hateful, targeted, aggressive, max(hateful, targeted, aggressive)
-
 def decidir_accion(score):
     if score < 0.30:  return "ignorar"
     if score < 0.55:  return "alertar"
     if score < 0.75:  return "borrar_y_alertar"
     return "timeout"
 
-def parsear_mensaje(contenido):
-    match = re.search(r'\((\d+(?:\.\d+)?)\)\s*$', contenido)
-    if match:
-        return contenido[:match.start()].strip(), float(match.group(1))
-    return contenido, None
 
 # ============================================================
 # ANALISIS  (delega a src/analisis.py)
@@ -176,6 +184,7 @@ def analizar_post():
         grafico_confusion_roc(filas)
         grafico_sensibilidad()
         grafico_tiempos(filas)
+    analizar_testing()
     print("================================\n")
 
 # ============================================================
@@ -187,23 +196,60 @@ intents.message_content = True
 intents.members = True
 
 bot = discord.Client(intents=intents)
-historial_tiempos = defaultdict(list)
-
-
-def calcular_velocidad(usuario_id):
-    ahora = _time.time()
-    historial_tiempos[usuario_id] = [
-        t for t in historial_tiempos[usuario_id] if ahora - t < 30
-    ]
-    historial_tiempos[usuario_id].append(ahora)
-    return min(len(historial_tiempos[usuario_id]) / 10, 1.0)
 
 
 @bot.event
 async def on_ready():
     inicializar_csv()
+    inicializar_testing_csv()
     print(f"Bot conectado como {bot.user}")
     print(f"Logueando en: {ARCHIVO_LOG}")
+
+
+_CAT_EMOJI = {"baja": "🟢", "media": "🟡", "alta": "🔴", "extrema": "⛔"}
+
+# ============================================================
+# UI — Botones de feedback de toxicidad
+# ============================================================
+
+class ToxicidadView(discord.ui.View):
+    def __init__(self, autor_id, datos):
+        super().__init__(timeout=600)
+        self.autor_id = autor_id
+        self.datos    = datos
+
+    async def _registrar(self, interaction, cat_esperada):
+        if interaction.user.id != self.autor_id:
+            await interaction.response.send_message(
+                "Solo el autor del mensaje puede calificarlo.", ephemeral=True
+            )
+            return
+        guardar_testing({
+            **self.datos,
+            "timestamp_feedback": datetime.now().isoformat(),
+            "cat_esperada":       cat_esperada,
+        })
+        self.stop()
+        await interaction.response.edit_message(
+            content=interaction.message.content + f"\n✅ **Registrado:** `{cat_esperada}`",
+            view=None,
+        )
+
+    @discord.ui.button(label="baja",    style=discord.ButtonStyle.success)
+    async def btn_baja(self, interaction, button):
+        await self._registrar(interaction, "baja")
+
+    @discord.ui.button(label="media",   style=discord.ButtonStyle.secondary)
+    async def btn_media(self, interaction, button):
+        await self._registrar(interaction, "media")
+
+    @discord.ui.button(label="alta",    style=discord.ButtonStyle.primary)
+    async def btn_alta(self, interaction, button):
+        await self._registrar(interaction, "alta")
+
+    @discord.ui.button(label="extrema", style=discord.ButtonStyle.danger)
+    async def btn_extrema(self, interaction, button):
+        await self._registrar(interaction, "extrema")
 
 
 async def _analizar_y_loguear(message, tipo):
@@ -213,24 +259,30 @@ async def _analizar_y_loguear(message, tipo):
 
     t_inicio = _time.perf_counter()
 
-    texto, score_esperado = parsear_mensaje(contenido)
+    texto      = contenido.strip()
     texto_norm = normalizar(texto)
 
     matches, longitud, dens_real, dens_norm = detectar_patrones_detallado(texto_norm)
-    hateful, targeted, aggressive, hate_max = hate_detallado(texto)
-    velocidad = calcular_velocidad(str(message.author.id))
+    conicet_s = score_conicet(texto)
+    detox_s   = score_detoxify(texto)
     historial = 0.0
 
-    score  = calcular_score_difuso(dens_norm, hate_max, historial, velocidad)
+    score  = calcular_score_difuso(dens_norm, conicet_s, detox_s, historial)
     accion = decidir_accion(score)
 
+    cats_in         = etiquetar_inputs(dens_norm, conicet_s, detox_s, historial)
+    cat_out, mu_out = etiquetar_output(score)
+
     tiempo_ms = (_time.perf_counter() - t_inicio) * 1000
+    ts        = datetime.now().isoformat()
 
-    if score < UMBRAL_LOG and score_esperado is None:
-        return
+    ln_cat, _ = cats_in['lista_negra']
+    co_cat, _ = cats_in['CONICET']
+    dt_cat, _ = cats_in['detoxify']
+    hu_cat, _ = cats_in['historial_usuario']
 
-    row = {
-        "timestamp":           datetime.now().isoformat(),
+    guardar_log({
+        "timestamp":           ts,
         "tipo":                tipo,
         "autor_id":            str(message.author.id),
         "autor_nombre":        str(message.author.name),
@@ -241,29 +293,51 @@ async def _analizar_y_loguear(message, tipo):
         "longitud_palabras":   longitud,
         "densidad_real":       round(dens_real, 4),
         "densidad_norm":       round(dens_norm, 4),
-        "hate_hateful":        round(hateful, 4),
-        "hate_targeted":       round(targeted, 4),
-        "hate_aggressive":     round(aggressive, 4),
-        "hate_max":            round(hate_max, 4),
+        "conicet_score":       round(conicet_s, 4),
+        "detoxify_score":      round(detox_s, 4),
         "historial":           historial,
-        "velocidad":           round(velocidad, 4),
         "score_obtenido":      round(score, 4),
-        "score_esperado":      score_esperado if score_esperado is not None else "",
+        "score_esperado":      "",
         "accion_sugerida":     accion,
         "tiempo_ms":           round(tiempo_ms, 2),
+    })
+
+    datos_testing = {
+        "timestamp_mensaje":  ts,
+        "autor_id":           str(message.author.id),
+        "autor_nombre":       str(message.author.name),
+        "canal":              str(message.channel.name),
+        "mensaje_original":   texto,
+        "lista_negra_score":  round(dens_norm, 4),
+        "lista_negra_cat":    ln_cat,
+        "conicet_score":      round(conicet_s, 4),
+        "conicet_cat":        co_cat,
+        "detoxify_score":     round(detox_s, 4),
+        "detoxify_cat":       dt_cat,
+        "historial_score":    historial,
+        "historial_cat":      hu_cat,
+        "score_difuso":       round(score, 4),
+        "cat_difusa":         cat_out,
     }
 
-    guardar_log(row)
-
-    if score_esperado is not None:
-        diff  = abs(score - score_esperado)
-        emoji = "✅" if diff <= 0.15 else "⚠️" if diff <= 0.30 else "❌"
-        prefijo = "[edicion] " if tipo == "edicion" else ""
-        await message.reply(
-            f"{prefijo}{emoji} **Score:** {score:.2f} | **Esperado:** {score_esperado} | "
-            f"**Diff:** {diff:.2f} | **Accion:** {accion} | **t:** {tiempo_ms:.0f}ms",
-            mention_author=False
-        )
+    prefijo = "[edicion] " if tipo == "edicion" else ""
+    tabla = (
+        "```\n"
+        f"Lista negra  │ {dens_norm:.4f} │ {ln_cat}\n"
+        f"CONICET      │ {conicet_s:.4f} │ {co_cat}\n"
+        f"Detoxify     │ {detox_s:.4f} │ {dt_cat}\n"
+        f"Historial    │ {historial:.4f} │ {hu_cat}\n"
+        "─────────────────────────────────\n"
+        f"Score difuso │ {score:.4f} │ {cat_out}  µ={mu_out:.2f}\n"
+        "```"
+    )
+    await message.reply(
+        f"{prefijo}📊 **Análisis** · ⏱ `{tiempo_ms:.0f}ms`\n"
+        f"{tabla}\n"
+        f"{_CAT_EMOJI.get(cat_out, '❓')} Categoría: `{cat_out}`",
+        view=ToxicidadView(message.author.id, datos_testing),
+        mention_author=False,
+    )
 
 
 @bot.event

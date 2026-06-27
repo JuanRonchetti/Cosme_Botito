@@ -1,5 +1,6 @@
 config/patrones.txt
 logs/
+tests/
 .env
 *.db
 membresias.png

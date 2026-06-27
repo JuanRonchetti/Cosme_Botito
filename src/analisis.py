@@ -15,17 +15,17 @@ ARCHIVO_LOG_DEFAULT = "logs/mensajes.csv"
 # ============================================================
 
 CASOS_VALIDACION = [
-    {"nombre": "Saludo normal",            "dens": 0.00, "hate": 0.02, "hist": 0.00, "vel": 0.10, "esperado": 0.08},
-    {"nombre": "Lenguaje suave",           "dens": 0.15, "hate": 0.05, "hist": 0.00, "vel": 0.15, "esperado": 0.18},
-    {"nombre": "Insulto leve",             "dens": 0.28, "hate": 0.10, "hist": 0.00, "vel": 0.10, "esperado": 0.30},
-    {"nombre": "Insulto sin hate",         "dens": 0.65, "hate": 0.05, "hist": 0.00, "vel": 0.10, "esperado": 0.48},
-    {"nombre": "Hate sin insultos",        "dens": 0.05, "hate": 0.55, "hist": 0.00, "vel": 0.10, "esperado": 0.52},
-    {"nombre": "Insulto + hate medio",     "dens": 0.50, "hate": 0.35, "hist": 0.00, "vel": 0.10, "esperado": 0.65},
-    {"nombre": "Reincidente leve",         "dens": 0.20, "hate": 0.10, "hist": 0.75, "vel": 0.20, "esperado": 0.62},
-    {"nombre": "Flood sin contenido",      "dens": 0.05, "hate": 0.02, "hist": 0.00, "vel": 0.85, "esperado": 0.22},
-    {"nombre": "Flood + insultos",         "dens": 0.50, "hate": 0.20, "hist": 0.00, "vel": 0.90, "esperado": 0.70},
-    {"nombre": "Hate extremo reincidente", "dens": 0.80, "hate": 0.75, "hist": 0.55, "vel": 0.30, "esperado": 0.88},
-    {"nombre": "Maxima toxicidad",         "dens": 1.00, "hate": 1.00, "hist": 1.00, "vel": 1.00, "esperado": 0.95},
+    {"nombre": "Saludo normal",               "dens": 0.00, "conicet": 0.02, "detox": 0.02, "hist": 0.00, "esperado": 0.08},
+    {"nombre": "Solo patrones leves",         "dens": 0.25, "conicet": 0.03, "detox": 0.05, "hist": 0.00, "esperado": 0.30},
+    {"nombre": "Detoxify medio sin lista",    "dens": 0.05, "conicet": 0.05, "detox": 0.45, "hist": 0.00, "esperado": 0.40},
+    {"nombre": "CONICET medio sin lista",     "dens": 0.05, "conicet": 0.30, "detox": 0.05, "hist": 0.00, "esperado": 0.38},
+    {"nombre": "Patrones altos sin NLP",      "dens": 0.70, "conicet": 0.05, "detox": 0.05, "hist": 0.00, "esperado": 0.45},
+    {"nombre": "Detoxify alto CONICET nulo",  "dens": 0.10, "conicet": 0.05, "detox": 0.78, "hist": 0.00, "esperado": 0.55},
+    {"nombre": "CONICET alto detoxify nulo",  "dens": 0.10, "conicet": 0.65, "detox": 0.10, "hist": 0.00, "esperado": 0.70},
+    {"nombre": "Reincidente CONICET medio",   "dens": 0.15, "conicet": 0.30, "detox": 0.15, "hist": 0.75, "esperado": 0.72},
+    {"nombre": "CONICET alto + detox alto",   "dens": 0.10, "conicet": 0.65, "detox": 0.80, "hist": 0.00, "esperado": 0.88},
+    {"nombre": "Detox muy_alto + cronico",    "dens": 0.20, "conicet": 0.10, "detox": 0.95, "hist": 0.90, "esperado": 0.88},
+    {"nombre": "Maxima toxicidad",            "dens": 1.00, "conicet": 1.00, "detox": 1.00, "hist": 1.00, "esperado": 0.95},
 ]
 
 # ============================================================
@@ -48,7 +48,7 @@ def grafico_validacion(directorio='logs'):
 
     for caso in CASOS_VALIDACION:
         score = calcular_score_difuso(
-            caso["dens"], caso["hate"], caso["hist"], caso["vel"], debug=False
+            caso["dens"], caso["conicet"], caso["detox"], caso["hist"], debug=False
         )
         nombres.append(caso["nombre"])
         obtenidos.append(score)
@@ -139,28 +139,37 @@ def grafico_confusion_roc(filas, directorio='logs'):
         fprs.append(_fp / (_fp + _tn) if (_fp + _tn) > 0 else 0.0)
     auc_val = float(np.trapezoid(tprs[::-1], fprs[::-1]))
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5))
+    fig = plt.figure(figsize=(18, 6))
     fig.suptitle(
-        f'Confusion y ROC -- {len(etiquetados)} mensajes etiquetados  (umbral: {UMBRAL_BIN})',
+        f'Confusion y ROC  --  {len(etiquetados)} mensajes etiquetados  (umbral: {UMBRAL_BIN})',
         fontsize=12
     )
+    ax_cm  = fig.add_subplot(1, 3, 1)
+    ax_met = fig.add_subplot(1, 3, 2)
+    ax_roc = fig.add_subplot(1, 3, 3)
 
-    ax = axes[0]
+    # Matriz — verde diagonal, rojo fuera
     labels = ['No toxico', 'Toxico']
-    im = ax.imshow(cm, cmap='Blues')
-    plt.colorbar(im, ax=ax)
-    ax.set_xticks([0, 1])
-    ax.set_yticks([0, 1])
-    ax.set_xticklabels(labels)
-    ax.set_yticklabels(labels)
-    ax.set_xlabel('Predicho')
-    ax.set_ylabel('Real')
-    ax.set_title('Matriz de Confusion')
-    thresh = cm.max() / 2
+    ax_cm.set_xlim(-0.5, 1.5)
+    ax_cm.set_ylim(1.5, -0.5)
+    ax_cm.set_aspect('equal')
     for i in range(2):
         for j in range(2):
-            ax.text(j, i, str(cm[i, j]), ha='center', va='center', fontsize=16,
-                    color='white' if cm[i, j] > thresh else 'black')
+            color = '#88c999' if i == j else '#f08080'
+            ax_cm.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1,
+                                          facecolor=color, edgecolor='white', linewidth=2))
+            ax_cm.text(j, i, str(cm[i, j]), ha='center', va='center',
+                       fontsize=20, color='black', fontweight='bold')
+    ax_cm.set_xticks([0, 1])
+    ax_cm.set_yticks([0, 1])
+    ax_cm.set_xticklabels(labels)
+    ax_cm.set_yticklabels(labels)
+    ax_cm.set_xlabel('Predicho')
+    ax_cm.set_ylabel('Real')
+    ax_cm.set_title('Matriz de Confusion')
+
+    # Métricas en panel dedicado
+    ax_met.axis('off')
     metricas = (
         f"Accuracy:  {accuracy:.3f}\n"
         f"Precision: {precision:.3f}\n"
@@ -169,23 +178,24 @@ def grafico_confusion_roc(filas, directorio='logs'):
         f"TP={tp}  FP={fp}\n"
         f"FN={fn}  TN={tn}"
     )
-    ax.text(1.08, 0.5, metricas, transform=ax.transAxes, fontsize=10,
-            va='center', family='monospace',
-            bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.85))
+    ax_met.text(0.5, 0.5, metricas, ha='center', va='center', fontsize=12,
+                family='monospace',
+                bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.85),
+                transform=ax_met.transAxes)
 
-    ax2 = axes[1]
-    ax2.plot(fprs, tprs, 'b-', linewidth=2, label=f'ROC (AUC = {auc_val:.3f})')
-    ax2.plot([0, 1], [0, 1], 'k--', linewidth=1, label='Aleatorio')
+    # ROC
+    ax_roc.plot(fprs, tprs, 'b-', linewidth=2, label=f'ROC (AUC = {auc_val:.3f})')
+    ax_roc.plot([0, 1], [0, 1], 'k--', linewidth=1, label='Aleatorio')
     fpr_op = fp / (fp + tn) if (fp + tn) > 0 else 0.0
     tpr_op = tp / (tp + fn) if (tp + fn) > 0 else 0.0
-    ax2.scatter([fpr_op], [tpr_op], color='red', s=80, zorder=5, label=f'Umbral={UMBRAL_BIN}')
-    ax2.set_xlabel('Tasa de Falsos Positivos (FPR)')
-    ax2.set_ylabel('Tasa de Verdaderos Positivos (TPR)')
-    ax2.set_title('Curva ROC')
-    ax2.legend(fontsize=9)
-    ax2.grid(True, alpha=0.3)
-    ax2.set_xlim(0, 1)
-    ax2.set_ylim(0, 1)
+    ax_roc.scatter([fpr_op], [tpr_op], color='red', s=80, zorder=5, label=f'Umbral={UMBRAL_BIN}')
+    ax_roc.set_xlabel('Tasa de Falsos Positivos (FPR)')
+    ax_roc.set_ylabel('Tasa de Verdaderos Positivos (TPR)')
+    ax_roc.set_title('Curva ROC')
+    ax_roc.legend(fontsize=9)
+    ax_roc.grid(True, alpha=0.3)
+    ax_roc.set_xlim(0, 1)
+    ax_roc.set_ylim(0, 1)
 
     plt.tight_layout()
     ruta = os.path.join(directorio, '03_confusion_roc.png')
@@ -202,10 +212,10 @@ def grafico_sensibilidad(directorio='logs'):
     x = np.linspace(0.0, 1.0, 50)
 
     variables = [
-        ('densidad',  0, 'steelblue'),
-        ('hate',      1, 'tomato'),
-        ('historial', 2, 'seagreen'),
-        ('velocidad', 3, 'goldenrod'),
+        ('lista_negra',       0, 'steelblue'),
+        ('CONICET',           1, 'tomato'),
+        ('detoxify',          2, 'seagreen'),
+        ('historial_usuario', 3, 'goldenrod'),
     ]
 
     fig, axes = plt.subplots(2, 2, figsize=(13, 9))
@@ -342,4 +352,92 @@ def analizar_todo(archivo=ARCHIVO_LOG_DEFAULT, directorio='logs'):
         grafico_tiempos(filas, directorio)
 
     print(f"  Graficos guardados en {directorio}/")
+    print("==========================================\n")
+
+# ============================================================
+# ANÁLISIS DE TESTING.CSV
+# ============================================================
+
+CATS_TOXICIDAD       = ['baja', 'media', 'alta', 'extrema']
+ARCHIVO_TESTING_DEFAULT = "logs/testing.csv"
+
+
+def grafico_confusion_testing(filas_testing, directorio='logs'):
+    validos = [
+        f for f in filas_testing
+        if f.get('cat_difusa') in CATS_TOXICIDAD and f.get('cat_esperada') in CATS_TOXICIDAD
+    ]
+    n = len(validos)
+    if n < 4:
+        print(f"  Confusion testing: {n} muestras etiquetadas (minimo 4). Usa los botones del bot para calificar mensajes.")
+        return
+
+    nc = len(CATS_TOXICIDAD)
+    cm = np.zeros((nc, nc), dtype=int)
+    for f in validos:
+        i = CATS_TOXICIDAD.index(f['cat_esperada'])
+        j = CATS_TOXICIDAD.index(f['cat_difusa'])
+        cm[i, j] += 1
+
+    accuracy = float(np.trace(cm)) / n
+
+    fig = plt.figure(figsize=(18, 6))
+    fig.suptitle(f'Testing — Categoría esperada vs predicha  ({n} muestras)', fontsize=13)
+    ax_cm  = fig.add_subplot(1, 2, 1)
+    ax_met = fig.add_subplot(1, 2, 2)
+
+    # Matriz 4x4 — verde diagonal, rojo fuera
+    ax_cm.set_xlim(-0.5, nc - 0.5)
+    ax_cm.set_ylim(nc - 0.5, -0.5)
+    ax_cm.set_aspect('equal')
+    for i in range(nc):
+        for j in range(nc):
+            color = '#88c999' if i == j else '#f08080'
+            ax_cm.add_patch(plt.Rectangle((j - 0.5, i - 0.5), 1, 1,
+                                          facecolor=color, edgecolor='white', linewidth=2))
+            ax_cm.text(j, i, str(cm[i, j]), ha='center', va='center',
+                       fontsize=15, color='black', fontweight='bold')
+    ax_cm.set_xticks(range(nc))
+    ax_cm.set_yticks(range(nc))
+    ax_cm.set_xticklabels(CATS_TOXICIDAD, fontsize=10)
+    ax_cm.set_yticklabels(CATS_TOXICIDAD, fontsize=10)
+    ax_cm.set_xlabel('Predicho  (cat_difusa)')
+    ax_cm.set_ylabel('Real  (cat_esperada)')
+    ax_cm.set_title('Matriz de Confusión')
+
+    # Métricas por clase
+    ax_met.axis('off')
+    lineas = [f"Accuracy total: {accuracy:.3f}   (n={n})\n\n"]
+    lineas.append(f"{'Clase':<12} {'Prec':>6} {'Recall':>7} {'F1':>6} {'n':>4}\n")
+    lineas.append("─" * 40 + "\n")
+    for i, cat in enumerate(CATS_TOXICIDAD):
+        tp_c = cm[i, i]
+        fp_c = int(cm[:, i].sum()) - tp_c
+        fn_c = int(cm[i, :].sum()) - tp_c
+        prec   = tp_c / (tp_c + fp_c) if (tp_c + fp_c) > 0 else 0.0
+        recall = tp_c / (tp_c + fn_c) if (tp_c + fn_c) > 0 else 0.0
+        f1_c   = 2 * prec * recall / (prec + recall) if (prec + recall) > 0 else 0.0
+        ni     = int(cm[i, :].sum())
+        lineas.append(f"{cat:<12} {prec:>6.3f} {recall:>7.3f} {f1_c:>6.3f} {ni:>4}\n")
+    ax_met.text(0.05, 0.95, "".join(lineas), ha='left', va='top', fontsize=12,
+                family='monospace',
+                bbox=dict(boxstyle='round', facecolor='lightyellow', alpha=0.85),
+                transform=ax_met.transAxes)
+
+    plt.tight_layout()
+    ruta = os.path.join(directorio, '06_confusion_testing.png')
+    plt.savefig(ruta, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"  Guardado: {ruta}  (accuracy={accuracy:.3f}, n={n})")
+
+
+def analizar_testing(archivo=ARCHIVO_TESTING_DEFAULT, directorio='logs'):
+    print(f"\n=== Analisis de testing ({archivo}) ===")
+    os.makedirs(directorio, exist_ok=True)
+    filas = leer_csv(archivo)
+    if not filas:
+        print("  testing.csv vacio o no encontrado.")
+    else:
+        print(f"  Leyendo {len(filas)} muestras de {archivo}")
+        grafico_confusion_testing(filas, directorio)
     print("==========================================\n")

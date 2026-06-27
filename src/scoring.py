@@ -11,32 +11,31 @@ import matplotlib.pyplot as plt
 # ============================================================
 
 CONFIG = {
-    'densidad': {
-        'bajo':     {'tipo': 'trapezoidal', 'params': (0.00, 0.00, 0.15, 0.30)},
+    'lista_negra': {
+        'nulo':     {'tipo': 'trapezoidal', 'params': (0.00, 0.00, 0.15, 0.30)},
         'medio':    {'tipo': 'trapezoidal', 'params': (0.15, 0.28, 0.45, 0.58)},
         'alto':     {'tipo': 'trapezoidal', 'params': (0.45, 0.58, 0.78, 0.90)},
         'muy_alto': {'tipo': 'trapezoidal', 'params': (0.78, 0.90, 1.00, 1.00)},
     },
 
-    'hate': {
-        'bajo':     {'tipo': 'trapezoidal', 'params': (0.00, 0.00, 0.05, 0.12)},
-        'medio':    {'tipo': 'trapezoidal', 'params': (0.05, 0.12, 0.22, 0.32)},
-        'alto':     {'tipo': 'trapezoidal', 'params': (0.22, 0.32, 0.50, 0.65)},
-        'muy_alto': {'tipo': 'trapezoidal', 'params': (0.50, 0.65, 1.00, 1.00)},
+    'CONICET': {
+        'nulo':  {'tipo': 'trapezoidal', 'params': (0.00, 0.00, 0.08, 0.15)},
+        'medio': {'tipo': 'trapezoidal', 'params': (0.08, 0.15, 0.45, 0.55)},
+        'alto':  {'tipo': 'trapezoidal', 'params': (0.45, 0.55, 1.00, 1.00)},
     },
 
-    'historial': {
+    'detoxify': {
+        'nulo':     {'tipo': 'trapezoidal', 'params': (0.00, 0.00, 0.15, 0.30)},
+        'medio':    {'tipo': 'trapezoidal', 'params': (0.15, 0.30, 0.55, 0.70)},
+        'alto':     {'tipo': 'trapezoidal', 'params': (0.55, 0.70, 0.88, 0.95)},
+        'muy_alto': {'tipo': 'trapezoidal', 'params': (0.88, 0.95, 1.00, 1.00)},
+    },
+
+    'historial_usuario': {
         'limpio':       {'tipo': 'trapezoidal', 'params': (0.00, 0.00, 0.12, 0.25)},
         'antecedentes': {'tipo': 'trapezoidal', 'params': (0.12, 0.25, 0.42, 0.55)},
         'reincidente':  {'tipo': 'trapezoidal', 'params': (0.42, 0.55, 0.72, 0.85)},
         'cronico':      {'tipo': 'trapezoidal', 'params': (0.72, 0.85, 1.00, 1.00)},
-    },
-
-    'velocidad': {
-        'normal': {'tipo': 'trapezoidal', 'params': (0.00, 0.00, 0.15, 0.30)},
-        'rapido': {'tipo': 'trapezoidal', 'params': (0.15, 0.28, 0.45, 0.58)},
-        'flood':  {'tipo': 'trapezoidal', 'params': (0.45, 0.58, 0.78, 0.90)},
-        'spam':   {'tipo': 'trapezoidal', 'params': (0.78, 0.90, 1.00, 1.00)},
     },
 
     'toxicidad': {
@@ -49,19 +48,16 @@ CONFIG = {
 
 # ============================================================
 # UMBRALES DE ACCIÓN
-# Controlás qué pasa con cada nivel de score
 # ============================================================
 
 UMBRALES = {
-    'ignorar':         0.30,   # por debajo de esto, no se hace nada
-    'alertar':         0.55,   # alerta a mods sin borrar
-    'borrar_y_alertar': 0.75,  # borra el mensaje y alerta
-    # por encima de borrar_y_alertar → timeout automático
+    'ignorar':          0.30,
+    'alertar':          0.55,
+    'borrar_y_alertar': 0.75,
 }
 
 # ============================================================
 # CONSTRUCTOR DE FUNCIONES DE MEMBRESÍA
-# No necesitás tocar esto
 # ============================================================
 
 def construir_membresia(universe, config):
@@ -87,18 +83,18 @@ def construir_membresia(universe, config):
 
 universe = np.arange(0, 1.01, 0.01)
 
-densidad  = ctrl.Antecedent(universe, 'densidad')
-hate      = ctrl.Antecedent(universe, 'hate')
-historial = ctrl.Antecedent(universe, 'historial')
-velocidad = ctrl.Antecedent(universe, 'velocidad')
-toxicidad = ctrl.Consequent(universe, 'toxicidad')
+lista_negra       = ctrl.Antecedent(universe, 'lista_negra')
+CONICET           = ctrl.Antecedent(universe, 'CONICET')
+detoxify          = ctrl.Antecedent(universe, 'detoxify')
+historial_usuario = ctrl.Antecedent(universe, 'historial_usuario')
+toxicidad         = ctrl.Consequent(universe, 'toxicidad')
 
 variables = {
-    'densidad':  densidad,
-    'hate':      hate,
-    'historial': historial,
-    'velocidad': velocidad,
-    'toxicidad': toxicidad,
+    'lista_negra':       lista_negra,
+    'CONICET':           CONICET,
+    'detoxify':          detoxify,
+    'historial_usuario': historial_usuario,
+    'toxicidad':         toxicidad,
 }
 
 for nombre_var, variable in variables.items():
@@ -111,49 +107,37 @@ for nombre_var, variable in variables.items():
 
 reglas = [
     # ── EXTREMA ─────────────────────────────────────────────────
-    ctrl.Rule(hate['muy_alto'] & densidad['muy_alto'],         toxicidad['extrema']),
-    ctrl.Rule(hate['muy_alto'] & densidad['alto'],             toxicidad['extrema']),
-    ctrl.Rule(hate['alto']     & densidad['muy_alto'],         toxicidad['extrema']),
-    ctrl.Rule(hate['muy_alto'] & historial['cronico'],         toxicidad['extrema']),
-    ctrl.Rule(hate['alto']     & historial['cronico'],         toxicidad['extrema']),
-    ctrl.Rule(densidad['muy_alto'] & historial['cronico'],     toxicidad['extrema']),
-    ctrl.Rule(hate['muy_alto'] & velocidad['spam'],            toxicidad['extrema']),
-    ctrl.Rule(densidad['muy_alto'] & velocidad['spam'],        toxicidad['extrema']),
+    ctrl.Rule(CONICET['alto'] & detoxify['muy_alto'],                       toxicidad['extrema']),
+    ctrl.Rule(CONICET['alto'] & detoxify['alto'],                           toxicidad['extrema']),
+    ctrl.Rule(CONICET['alto'] & historial_usuario['cronico'],               toxicidad['extrema']),
+    ctrl.Rule(detoxify['muy_alto'] & historial_usuario['cronico'],          toxicidad['extrema']),
 
     # ── ALTA ────────────────────────────────────────────────────
-    ctrl.Rule(hate['alto']     & densidad['alto'],             toxicidad['alta']),
-    ctrl.Rule(hate['alto']     & densidad['medio'],            toxicidad['alta']),
-    ctrl.Rule(hate['muy_alto'] & densidad['medio'],            toxicidad['alta']),
-    ctrl.Rule(hate['muy_alto'] & densidad['bajo'],             toxicidad['alta']),
-    ctrl.Rule(densidad['muy_alto'] & hate['medio'],            toxicidad['alta']),
-    ctrl.Rule(densidad['muy_alto'] & hate['bajo'],             toxicidad['alta']),
-    ctrl.Rule(densidad['alto'] & historial['reincidente'],     toxicidad['alta']),
-    ctrl.Rule(densidad['alto'] & historial['cronico'],         toxicidad['alta']),
-    ctrl.Rule(densidad['medio'] & historial['reincidente'],    toxicidad['alta']),
-    ctrl.Rule(densidad['medio'] & historial['cronico'],        toxicidad['alta']),
-    ctrl.Rule(hate['medio']    & historial['reincidente'],     toxicidad['alta']),
-    ctrl.Rule(hate['medio']    & historial['cronico'],         toxicidad['alta']),
-    ctrl.Rule(hate['alto']     & historial['reincidente'],     toxicidad['alta']),
-    ctrl.Rule(densidad['alto'] & velocidad['flood'],           toxicidad['alta']),
-    ctrl.Rule(densidad['alto'] & velocidad['spam'],            toxicidad['alta']),
-    ctrl.Rule(hate['medio']    & velocidad['flood'],           toxicidad['alta']),
-    ctrl.Rule(hate['medio']    & velocidad['spam'],            toxicidad['alta']),
-    ctrl.Rule(densidad['medio'] & velocidad['flood'],          toxicidad['alta']),
-    ctrl.Rule(densidad['medio'] & velocidad['spam'],           toxicidad['alta']),
+    ctrl.Rule(CONICET['alto'] & detoxify['nulo'],                           toxicidad['alta']),
+    ctrl.Rule(CONICET['alto'] & detoxify['medio'],                          toxicidad['alta']),
+    ctrl.Rule(detoxify['muy_alto'] & CONICET['medio'],                      toxicidad['alta']),
+    ctrl.Rule(lista_negra['alto'] & detoxify['alto'],                       toxicidad['alta']),
+    ctrl.Rule(lista_negra['alto'] & detoxify['muy_alto'],                   toxicidad['alta']),
+    ctrl.Rule(CONICET['medio'] & historial_usuario['reincidente'],          toxicidad['alta']),
+    ctrl.Rule(detoxify['alto'] & historial_usuario['reincidente'],          toxicidad['alta']),
 
     # ── MEDIA ───────────────────────────────────────────────────
-    ctrl.Rule(densidad['alto']   & hate['bajo'],               toxicidad['media']),
-    ctrl.Rule(densidad['medio']  & hate['medio'],              toxicidad['media']),
-    ctrl.Rule(densidad['medio']  & hate['bajo'],               toxicidad['media']),
-    ctrl.Rule(hate['alto']       & densidad['bajo'],           toxicidad['media']),
-    ctrl.Rule(hate['medio']      & historial['antecedentes'],  toxicidad['media']),
-    ctrl.Rule(densidad['bajo']   & historial['antecedentes'],  toxicidad['media']),
-    ctrl.Rule(velocidad['flood'] & densidad['bajo'],           toxicidad['media']),
-    ctrl.Rule(velocidad['rapido'] & hate['medio'],             toxicidad['media']),
-    ctrl.Rule(velocidad['rapido'] & densidad['medio'],         toxicidad['media']),
+    ctrl.Rule(detoxify['muy_alto'] & CONICET['nulo'],                       toxicidad['media']),
+    ctrl.Rule(detoxify['alto'] & CONICET['nulo'],                           toxicidad['media']),
+    ctrl.Rule(lista_negra['alto'] & CONICET['nulo'] & detoxify['nulo'],     toxicidad['media']),
+    ctrl.Rule(lista_negra['medio'] & CONICET['nulo'] & detoxify['nulo'],    toxicidad['media']),
+    ctrl.Rule(detoxify['medio'] & CONICET['nulo'] & lista_negra['nulo'],    toxicidad['media']),
+    ctrl.Rule(lista_negra['medio'] & detoxify['medio'],                     toxicidad['media']),
+    ctrl.Rule(CONICET['medio'] & detoxify['nulo'],                          toxicidad['media']),
+    ctrl.Rule(lista_negra['medio'] & historial_usuario['antecedentes'],     toxicidad['media']),
+    ctrl.Rule(detoxify['medio'] & historial_usuario['antecedentes'],        toxicidad['media']),
 
     # ── BAJA ────────────────────────────────────────────────────
-    ctrl.Rule(densidad['bajo']   & hate['bajo'],               toxicidad['baja']),
+    ctrl.Rule(
+        detoxify['medio'] & CONICET['nulo'] & lista_negra['nulo'] & historial_usuario['limpio'],
+        toxicidad['baja'],
+    ),
+    ctrl.Rule(CONICET['nulo'] & detoxify['nulo'] & lista_negra['nulo'],     toxicidad['baja']),
 ]
 
 sistema_control = ctrl.ControlSystem(reglas)
@@ -162,16 +146,44 @@ sistema_control = ctrl.ControlSystem(reglas)
 # FUNCIÓN PRINCIPAL DE SCORING
 # ============================================================
 
-def calcular_score_difuso(dens, hate_score, hist, vel, debug=True):
+def calcular_score_difuso(dens, conicet_score, detox_score, hist, debug=False):
     sim = ctrl.ControlSystemSimulation(sistema_control)
-    sim.input['densidad']  = dens
-    sim.input['hate']      = hate_score
-    sim.input['historial'] = hist
-    sim.input['velocidad'] = vel
+    sim.input['lista_negra']       = dens
+    sim.input['CONICET']           = conicet_score
+    sim.input['detoxify']          = detox_score
+    sim.input['historial_usuario'] = hist
 
     if debug:
-        print(f"    densidad  → bajo:{fuzz.interp_membership(densidad.universe, densidad['bajo'].mf, dens):.2f} medio:{fuzz.interp_membership(densidad.universe, densidad['medio'].mf, dens):.2f} alto:{fuzz.interp_membership(densidad.universe, densidad['alto'].mf, dens):.2f} muy_alto:{fuzz.interp_membership(densidad.universe, densidad['muy_alto'].mf, dens):.2f}")
-        print(f"    hate      → bajo:{fuzz.interp_membership(hate.universe, hate['bajo'].mf, hate_score):.2f} medio:{fuzz.interp_membership(hate.universe, hate['medio'].mf, hate_score):.2f} alto:{fuzz.interp_membership(hate.universe, hate['alto'].mf, hate_score):.2f} muy_alto:{fuzz.interp_membership(hate.universe, hate['muy_alto'].mf, hate_score):.2f}")
+        ln = lista_negra
+        co = CONICET
+        dt = detoxify
+        hu = historial_usuario
+        print(
+            f"    lista_negra       → "
+            f"nulo:{fuzz.interp_membership(ln.universe, ln['nulo'].mf, dens):.2f} "
+            f"medio:{fuzz.interp_membership(ln.universe, ln['medio'].mf, dens):.2f} "
+            f"alto:{fuzz.interp_membership(ln.universe, ln['alto'].mf, dens):.2f}"
+        )
+        print(
+            f"    CONICET           → "
+            f"nulo:{fuzz.interp_membership(co.universe, co['nulo'].mf, conicet_score):.2f} "
+            f"medio:{fuzz.interp_membership(co.universe, co['medio'].mf, conicet_score):.2f} "
+            f"alto:{fuzz.interp_membership(co.universe, co['alto'].mf, conicet_score):.2f}"
+        )
+        print(
+            f"    detoxify          → "
+            f"nulo:{fuzz.interp_membership(dt.universe, dt['nulo'].mf, detox_score):.2f} "
+            f"medio:{fuzz.interp_membership(dt.universe, dt['medio'].mf, detox_score):.2f} "
+            f"alto:{fuzz.interp_membership(dt.universe, dt['alto'].mf, detox_score):.2f} "
+            f"muy_alto:{fuzz.interp_membership(dt.universe, dt['muy_alto'].mf, detox_score):.2f}"
+        )
+        print(
+            f"    historial_usuario → "
+            f"limpio:{fuzz.interp_membership(hu.universe, hu['limpio'].mf, hist):.2f} "
+            f"antecedentes:{fuzz.interp_membership(hu.universe, hu['antecedentes'].mf, hist):.2f} "
+            f"reincidente:{fuzz.interp_membership(hu.universe, hu['reincidente'].mf, hist):.2f} "
+            f"cronico:{fuzz.interp_membership(hu.universe, hu['cronico'].mf, hist):.2f}"
+        )
 
     try:
         sim.compute()
@@ -195,19 +207,19 @@ def decidir_accion(score):
 # ============================================================
 
 TITULOS = {
-    'densidad':  'Densidad de palabras ofensivas',
-    'hate':      'Score hate speech (pysentimiento)',
-    'historial': 'Historial de infracciones',
-    'velocidad': 'Velocidad de mensajes',
-    'toxicidad': 'Toxicidad (salida)',
+    'lista_negra':       'Lista negra (patrones)',
+    'CONICET':           'Score CONICET (bert-hate-speech-es)',
+    'detoxify':          'Score Detoxify (multilingual)',
+    'historial_usuario': 'Historial del usuario',
+    'toxicidad':         'Toxicidad (salida)',
 }
 
 def graficar_membresias(ruta='membresias.png', mostrar=True):
     fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(15, 8))
     fig.suptitle('Funciones de Membresía del Sistema Difuso', fontsize=14)
 
-    posiciones = [(0,0), (0,1), (0,2), (1,0), (1,1)]
-    nombres_vars = ['densidad', 'hate', 'historial', 'velocidad', 'toxicidad']
+    posiciones   = [(0, 0), (0, 1), (0, 2), (1, 0), (1, 1)]
+    nombres_vars = ['lista_negra', 'CONICET', 'detoxify', 'historial_usuario', 'toxicidad']
 
     for idx, nombre_var in enumerate(nombres_vars):
         ax = axes[posiciones[idx]]
@@ -220,7 +232,6 @@ def graficar_membresias(ruta='membresias.png', mostrar=True):
         ax.set_xlim(0, 1)
         ax.grid(True, alpha=0.3)
 
-    # Panel de info
     ax_info = axes[1, 2]
     ax_info.axis('off')
     info = (
@@ -247,3 +258,27 @@ def graficar_membresias(ruta='membresias.png', mostrar=True):
     else:
         plt.close()
     print(f"Guardado como {ruta}")
+
+# ============================================================
+# HELPERS DE INTERPRETACIÓN
+# ============================================================
+
+def _cat_dominante(var_obj, cfg_key, valor):
+    best, best_mu = None, -1.0
+    for cat in CONFIG[cfg_key]:
+        mu = fuzz.interp_membership(var_obj.universe, var_obj[cat].mf, valor)
+        if mu > best_mu:
+            best_mu = mu
+            best = cat
+    return best, round(best_mu, 2)
+
+def etiquetar_inputs(dens, conicet_score, detox_score, hist):
+    return {
+        'lista_negra':       _cat_dominante(lista_negra,       'lista_negra',       dens),
+        'CONICET':           _cat_dominante(CONICET,           'CONICET',           conicet_score),
+        'detoxify':          _cat_dominante(detoxify,          'detoxify',          detox_score),
+        'historial_usuario': _cat_dominante(historial_usuario, 'historial_usuario', hist),
+    }
+
+def etiquetar_output(score):
+    return _cat_dominante(toxicidad, 'toxicidad', score)
