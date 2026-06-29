@@ -362,7 +362,7 @@ CATS_TOXICIDAD       = ['baja', 'media', 'alta', 'extrema']
 ARCHIVO_TESTING_DEFAULT = "logs/testing.csv"
 
 
-def grafico_confusion_testing(filas_testing, directorio='logs'):
+def grafico_confusion_testing(filas_testing, directorio='logs', nombre='06_confusion_testing.png'):
     validos = [
         f for f in filas_testing
         if f.get('cat_difusa') in CATS_TOXICIDAD and f.get('cat_esperada') in CATS_TOXICIDAD
@@ -425,7 +425,7 @@ def grafico_confusion_testing(filas_testing, directorio='logs'):
                 transform=ax_met.transAxes)
 
     plt.tight_layout()
-    ruta = os.path.join(directorio, '06_confusion_testing.png')
+    ruta = os.path.join(directorio, nombre)
     plt.savefig(ruta, dpi=150, bbox_inches='tight')
     plt.close()
     print(f"  Guardado: {ruta}  (accuracy={accuracy:.3f}, n={n})")
