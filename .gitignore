@@ -1,6 +1,7 @@
 config/
 logs/
 tests/
+documentation/ag_optimizacion.ipynb
 .env
 *.db
 membresias.png
