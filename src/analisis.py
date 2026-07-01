@@ -358,7 +358,7 @@ def analizar_todo(archivo=ARCHIVO_LOG_DEFAULT, directorio='logs'):
 # ANÁLISIS DE TESTING.CSV
 # ============================================================
 
-CATS_TOXICIDAD       = ['baja', 'media', 'alta', 'extrema']
+CATS_TOXICIDAD       = ['baja', 'media', 'alta']
 ARCHIVO_TESTING_DEFAULT = "logs/testing.csv"
 
 

@@ -39,11 +39,10 @@ CONFIG = {
     },
 
     'toxicidad': {
-        'baja':    {'tipo': 'trapezoidal', 'params': (0.00, 0.00, 0.15, 0.28)},
-        'media':   {'tipo': 'trapezoidal', 'params': (0.18, 0.28, 0.42, 0.55)},
-        'alta':    {'tipo': 'trapezoidal', 'params': (0.42, 0.55, 0.68, 0.78)},
-        'extrema': {'tipo': 'trapezoidal', 'params': (0.65, 0.75, 1.00, 1.00)},
-    },
+        'baja':  {'tipo': 'trapezoidal', 'params': (0.000, 0.000, 0.044, 0.086)},
+        'media': {'tipo': 'trapezoidal', 'params': (0.045, 0.121, 0.212, 0.466)},
+        'alta':  {'tipo': 'trapezoidal', 'params': (0.233, 0.435, 1.000, 1.000)},
+    }
 }
 
 # ============================================================
@@ -106,84 +105,30 @@ for nombre_var, variable in variables.items():
 # ============================================================
 
 reglas = [
-    # # ── EXTREMA ─────────────────────────────────────────────────
-    # ctrl.Rule(CONICET['alto'] & detoxify['muy_alto'],                       toxicidad['extrema']),
-    # ctrl.Rule(CONICET['alto'] & detoxify['alto'],                           toxicidad['extrema']),
-    # ctrl.Rule(CONICET['alto'] & historial_usuario['cronico'],               toxicidad['extrema']),
-    # ctrl.Rule(detoxify['muy_alto'] & historial_usuario['cronico'],          toxicidad['extrema']),
-
-    # # ── ALTA ────────────────────────────────────────────────────
-    # ctrl.Rule(CONICET['alto'] & detoxify['nulo'],                           toxicidad['alta']),
-    # ctrl.Rule(CONICET['alto'] & detoxify['medio'],                          toxicidad['alta']),
-    # ctrl.Rule(detoxify['muy_alto'] & CONICET['medio'],                      toxicidad['alta']),
-    # ctrl.Rule(lista_negra['alto'] & detoxify['alto'],                       toxicidad['alta']),
-    # ctrl.Rule(lista_negra['alto'] & detoxify['muy_alto'],                   toxicidad['alta']),
-    # ctrl.Rule(CONICET['medio'] & historial_usuario['reincidente'],          toxicidad['alta']),
-    # ctrl.Rule(detoxify['alto'] & historial_usuario['reincidente'],          toxicidad['alta']),
-
-    # # ── MEDIA ───────────────────────────────────────────────────
-    # ctrl.Rule(detoxify['muy_alto'] & CONICET['nulo'],                       toxicidad['media']),
-    # ctrl.Rule(detoxify['alto'] & CONICET['nulo'],                           toxicidad['media']),
-    # ctrl.Rule(lista_negra['alto'] & CONICET['nulo'] & detoxify['nulo'],     toxicidad['media']),
-    # ctrl.Rule(lista_negra['medio'] & CONICET['nulo'] & detoxify['nulo'],    toxicidad['media']),
-    # ctrl.Rule(detoxify['medio'] & CONICET['nulo'] & lista_negra['nulo'],    toxicidad['media']),
-    # ctrl.Rule(lista_negra['medio'] & detoxify['medio'],                     toxicidad['media']),
-    # ctrl.Rule(CONICET['medio'] & detoxify['nulo'],                          toxicidad['media']),
-    # ctrl.Rule(lista_negra['medio'] & historial_usuario['antecedentes'],     toxicidad['media']),
-    # ctrl.Rule(detoxify['medio'] & historial_usuario['antecedentes'],        toxicidad['media']),
-
-    # # ── BAJA ────────────────────────────────────────────────────
-    # ctrl.Rule(
-    #     detoxify['medio'] & CONICET['nulo'] & lista_negra['nulo'] & historial_usuario['limpio'],
-    #     toxicidad['baja'],
-    # ),
-    # ctrl.Rule(CONICET['nulo'] & detoxify['nulo'] & lista_negra['nulo'],     toxicidad['baja']),
-
-    # ── EXTREMA ────────────────────────────────────────────────
-    ctrl.Rule(CONICET['alto'] & detoxify['muy_alto'],              toxicidad['extrema']),
-    ctrl.Rule(CONICET['alto'] & detoxify['alto'],                  toxicidad['extrema']),
-    ctrl.Rule(CONICET['alto'] & historial_usuario['cronico'],      toxicidad['extrema']),
-    ctrl.Rule(detoxify['muy_alto'] & historial_usuario['cronico'], toxicidad['extrema']),
-    # lista negra muy alta confirma cualquier señal media
-    ctrl.Rule(lista_negra['muy_alto'] & CONICET['alto'],           toxicidad['extrema']),
-    ctrl.Rule(lista_negra['muy_alto'] & detoxify['alto'],          toxicidad['extrema']),
-
     # ── ALTA ───────────────────────────────────────────────────
-    # CONICET es la señal principal
-    ctrl.Rule(CONICET['alto'] & detoxify['medio'],                 toxicidad['alta']),
+    ctrl.Rule(CONICET['alto'] & detoxify['muy_alto'],              toxicidad['alta']),
+    ctrl.Rule(CONICET['alto'] & detoxify['alto'],                  toxicidad['alta']),
+    ctrl.Rule(CONICET['alto'] & historial_usuario['cronico'],      toxicidad['alta']),
+    ctrl.Rule(lista_negra['muy_alto'] & CONICET['alto'],           toxicidad['alta']),
     ctrl.Rule(CONICET['alto'] & lista_negra['nulo'],               toxicidad['alta']),
-    # detoxify muy alto sube aunque CONICET no detecte
-    ctrl.Rule(detoxify['muy_alto'] & CONICET['nulo'],              toxicidad['alta']),
-    ctrl.Rule(detoxify['muy_alto'] & CONICET['medio'],             toxicidad['alta']),
-    # detoxify alto sin CONICET también sube 
-    ctrl.Rule(detoxify['alto'] & CONICET['nulo'],                  toxicidad['alta']),
-    # lista negra con respaldo de cualquier modelo
-    ctrl.Rule(lista_negra['muy_alto'] & detoxify['medio'],         toxicidad['alta']),
-    ctrl.Rule(lista_negra['muy_alto'] & CONICET['medio'],          toxicidad['alta']),
-    ctrl.Rule(lista_negra['alto'] & detoxify['alto'],              toxicidad['alta']),
-    ctrl.Rule(lista_negra['alto'] & detoxify['muy_alto'],          toxicidad['alta']),
-    ctrl.Rule(lista_negra['alto'] & CONICET['alto'],               toxicidad['alta']),
-    # lista negra sola ya merece alta si es muy alta
-    ctrl.Rule(lista_negra['muy_alto'],                             toxicidad['alta']),
-    # reincidentes
-    ctrl.Rule(CONICET['medio'] & historial_usuario['reincidente'], toxicidad['alta']),
-    ctrl.Rule(detoxify['alto'] & historial_usuario['reincidente'], toxicidad['alta']),
+    ctrl.Rule(detoxify['muy_alto'] & CONICET['nulo'],              toxicidad['alta']),     # 1.00
+    ctrl.Rule(detoxify['alto'] & CONICET['nulo'],                  toxicidad['alta']),     # 1.28
+    ctrl.Rule(lista_negra['muy_alto'] & detoxify['medio'],         toxicidad['alta']),     # 1.41
+    ctrl.Rule(lista_negra['muy_alto'] & CONICET['medio'],          toxicidad['alta']),     # 0.78
+    ctrl.Rule(lista_negra['alto'] & detoxify['alto'],              toxicidad['alta']),     # 1.25
+    ctrl.Rule(lista_negra['alto'] & detoxify['muy_alto'],          toxicidad['alta']),     # 1.01
+    ctrl.Rule(lista_negra['alto'] & CONICET['alto'],               toxicidad['alta']),     # 1.42
+    ctrl.Rule(lista_negra['muy_alto'],                             toxicidad['alta']),     # 1.57
+    ctrl.Rule(detoxify['alto'] & historial_usuario['reincidente'], toxicidad['alta']),     # 1.08
 
     # ── MEDIA ──────────────────────────────────────────────────
-    ctrl.Rule(CONICET['alto'] & detoxify['nulo'], toxicidad['media']),
-    # lista negra medio con algo de detoxify
-    ctrl.Rule(lista_negra['medio'] & detoxify['medio'],            toxicidad['media']),
-    ctrl.Rule(lista_negra['medio'] & detoxify['alto'],             toxicidad['media']),
-    # lista negra sola nivel medio
-    ctrl.Rule(lista_negra['medio'] & CONICET['nulo'] & detoxify['nulo'], toxicidad['media']),
-    ctrl.Rule(lista_negra['alto']  & CONICET['nulo'] & detoxify['nulo'], toxicidad['media']),
-    # CONICET medio sin respaldo
-    ctrl.Rule(CONICET['medio'] & detoxify['nulo'],                 toxicidad['media']),
-    # detoxify medio sin nada más
-    ctrl.Rule(detoxify['medio'] & CONICET['nulo'] & lista_negra['nulo'], toxicidad['media']),
-    # antecedentes con señal baja
-    ctrl.Rule(lista_negra['medio'] & historial_usuario['antecedentes'], toxicidad['media']),
-    ctrl.Rule(detoxify['medio']    & historial_usuario['antecedentes'], toxicidad['media']),
+    ctrl.Rule(lista_negra['medio'] & detoxify['medio'],            toxicidad['media']),    # 1.88
+    ctrl.Rule(lista_negra['medio'] & detoxify['alto'],             toxicidad['media']),    # 1.15
+    ctrl.Rule(lista_negra['medio'] & CONICET['nulo'] & detoxify['nulo'], toxicidad['media']),  # 1.31
+    ctrl.Rule(CONICET['medio'] & detoxify['nulo'],                 toxicidad['media']),    # 1.23
+    ctrl.Rule(detoxify['medio'] & CONICET['nulo'] & lista_negra['nulo'], toxicidad['media']),  # 1.00
+    ctrl.Rule(lista_negra['medio'] & historial_usuario['antecedentes'], toxicidad['media']),  # 1.12
+    ctrl.Rule(detoxify['medio'] & historial_usuario['antecedentes'],    toxicidad['media']),  # 0.80
 
     # ── BAJA ───────────────────────────────────────────────────
     ctrl.Rule(CONICET['nulo'] & detoxify['nulo'] & lista_negra['nulo'], toxicidad['baja']),

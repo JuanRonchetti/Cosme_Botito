@@ -206,7 +206,7 @@ async def on_ready():
     print(f"Logueando en: {ARCHIVO_LOG}")
 
 
-_CAT_EMOJI = {"baja": "🟢", "media": "🟡", "alta": "🔴", "extrema": "⛔"}
+_CAT_EMOJI = {"baja": "🟢", "media": "🟡", "alta": "🔴"}
 
 # ============================================================
 # UI — Botones de feedback de toxicidad
@@ -243,13 +243,9 @@ class ToxicidadView(discord.ui.View):
     async def btn_media(self, interaction, button):
         await self._registrar(interaction, "media")
 
-    @discord.ui.button(label="alta",    style=discord.ButtonStyle.primary)
+    @discord.ui.button(label="alta",    style=discord.ButtonStyle.danger)
     async def btn_alta(self, interaction, button):
         await self._registrar(interaction, "alta")
-
-    @discord.ui.button(label="extrema", style=discord.ButtonStyle.danger)
-    async def btn_extrema(self, interaction, button):
-        await self._registrar(interaction, "extrema")
 
 
 async def _analizar_y_loguear(message, tipo):

@@ -1,8 +1,9 @@
-config/patrones.txt
+config/
 logs/
 tests/
 .env
 *.db
 membresias.png
+IDEAS_A_FUTURO.md
 optimizar_membresias.py
 __pycache__/
