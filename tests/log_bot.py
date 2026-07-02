@@ -20,8 +20,6 @@ import unicodedata
 from datetime import datetime
 import time as _time
 
-# El script vive en tests/; agregamos la raíz del proyecto a sys.path
-# (para "from src..." ) y hacemos chdir ahí (para rutas relativas config/, logs/, .env).
 _RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _RAIZ)
 os.chdir(_RAIZ)

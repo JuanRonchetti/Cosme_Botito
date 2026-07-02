@@ -51,8 +51,7 @@ CONFIG = {
     'toxicidad': {
         'baja': {'tipo': 'trapezoidal', 'params': (0.000, 0.000, 0.056, 0.069)},
         'media': {'tipo': 'trapezoidal', 'params': (0.062, 0.132, 0.169, 0.549)},
-        'alta': {'tipo': 'trapezoidal', 'params': (0.068, 0.329, 0.487, 0.513)},
-        'extrema': {'tipo': 'trapezoidal', 'params': (0.463, 0.502, 1.000, 1.000)},
+        'alta': {'tipo': 'trapezoidal', 'params': (0.068, 0.329, 1.000, 1.000)},
     }
 }
 
