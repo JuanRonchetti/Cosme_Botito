@@ -1,3 +1,13 @@
+"""
+scoring.py
+----------
+Sistema de inferencia difusa (skfuzzy) del bot: define las variables
+de entrada (lista_negra, CONICET, detoxify, historial_usuario) y la
+variable de salida (toxicidad), sus membresías configurables en
+CONFIG y las reglas que las combinan. Expone `calcular_score_difuso`
+como punto de entrada principal para obtener el score final.
+"""
+
 import numpy as np
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
@@ -39,9 +49,10 @@ CONFIG = {
     },
 
     'toxicidad': {
-        'baja':  {'tipo': 'trapezoidal', 'params': (0.000, 0.000, 0.044, 0.086)},
-        'media': {'tipo': 'trapezoidal', 'params': (0.045, 0.121, 0.212, 0.466)},
-        'alta':  {'tipo': 'trapezoidal', 'params': (0.233, 0.435, 1.000, 1.000)},
+        'baja': {'tipo': 'trapezoidal', 'params': (0.000, 0.000, 0.056, 0.069)},
+        'media': {'tipo': 'trapezoidal', 'params': (0.062, 0.132, 0.169, 0.549)},
+        'alta': {'tipo': 'trapezoidal', 'params': (0.068, 0.329, 0.487, 0.513)},
+        'extrema': {'tipo': 'trapezoidal', 'params': (0.463, 0.502, 1.000, 1.000)},
     }
 }
 
@@ -60,6 +71,7 @@ UMBRALES = {
 # ============================================================
 
 def construir_membresia(universe, config):
+    """Construye el array de membresía fuzzy correspondiente a `config` (tipo + params) sobre `universe`."""
     tipo = config['tipo']
     p = config['params']
 
@@ -108,27 +120,25 @@ reglas = [
     # ── ALTA ───────────────────────────────────────────────────
     ctrl.Rule(CONICET['alto'] & detoxify['muy_alto'],              toxicidad['alta']),
     ctrl.Rule(CONICET['alto'] & detoxify['alto'],                  toxicidad['alta']),
-    ctrl.Rule(CONICET['alto'] & historial_usuario['cronico'],      toxicidad['alta']),
     ctrl.Rule(lista_negra['muy_alto'] & CONICET['alto'],           toxicidad['alta']),
     ctrl.Rule(CONICET['alto'] & lista_negra['nulo'],               toxicidad['alta']),
-    ctrl.Rule(detoxify['muy_alto'] & CONICET['nulo'],              toxicidad['alta']),     # 1.00
-    ctrl.Rule(detoxify['alto'] & CONICET['nulo'],                  toxicidad['alta']),     # 1.28
-    ctrl.Rule(lista_negra['muy_alto'] & detoxify['medio'],         toxicidad['alta']),     # 1.41
-    ctrl.Rule(lista_negra['muy_alto'] & CONICET['medio'],          toxicidad['alta']),     # 0.78
-    ctrl.Rule(lista_negra['alto'] & detoxify['alto'],              toxicidad['alta']),     # 1.25
-    ctrl.Rule(lista_negra['alto'] & detoxify['muy_alto'],          toxicidad['alta']),     # 1.01
-    ctrl.Rule(lista_negra['alto'] & CONICET['alto'],               toxicidad['alta']),     # 1.42
-    ctrl.Rule(lista_negra['muy_alto'],                             toxicidad['alta']),     # 1.57
-    ctrl.Rule(detoxify['alto'] & historial_usuario['reincidente'], toxicidad['alta']),     # 1.08
+    ctrl.Rule(detoxify['muy_alto'] & CONICET['nulo'],              toxicidad['alta']),   
+    ctrl.Rule(detoxify['alto'] & CONICET['nulo'],                  toxicidad['alta']),    
+    ctrl.Rule(lista_negra['muy_alto'] & detoxify['medio'],         toxicidad['alta']),    
+    ctrl.Rule(lista_negra['muy_alto'] & CONICET['medio'],          toxicidad['alta']),    
+    ctrl.Rule(lista_negra['alto'] & detoxify['muy_alto'],          toxicidad['alta']),    
+    ctrl.Rule(lista_negra['alto'] & CONICET['alto'],               toxicidad['alta']),    
+    ctrl.Rule(lista_negra['muy_alto'],                             toxicidad['alta']),    
+    ctrl.Rule(detoxify['alto'] & historial_usuario['reincidente'], toxicidad['alta']),    
 
     # ── MEDIA ──────────────────────────────────────────────────
-    ctrl.Rule(lista_negra['medio'] & detoxify['medio'],            toxicidad['media']),    # 1.88
-    ctrl.Rule(lista_negra['medio'] & detoxify['alto'],             toxicidad['media']),    # 1.15
-    ctrl.Rule(lista_negra['medio'] & CONICET['nulo'] & detoxify['nulo'], toxicidad['media']),  # 1.31
-    ctrl.Rule(CONICET['medio'] & detoxify['nulo'],                 toxicidad['media']),    # 1.23
-    ctrl.Rule(detoxify['medio'] & CONICET['nulo'] & lista_negra['nulo'], toxicidad['media']),  # 1.00
-    ctrl.Rule(lista_negra['medio'] & historial_usuario['antecedentes'], toxicidad['media']),  # 1.12
-    ctrl.Rule(detoxify['medio'] & historial_usuario['antecedentes'],    toxicidad['media']),  # 0.80
+    ctrl.Rule(lista_negra['medio'] & detoxify['medio'],            toxicidad['media']),   
+    ctrl.Rule(lista_negra['medio'] & detoxify['alto'],             toxicidad['media']),   
+    ctrl.Rule(lista_negra['medio'] & CONICET['nulo'] & detoxify['nulo'], toxicidad['media']), 
+    ctrl.Rule(CONICET['medio'] & detoxify['nulo'],                 toxicidad['media']),  
+    ctrl.Rule(detoxify['medio'] & CONICET['nulo'] & lista_negra['nulo'], toxicidad['media']),  
+    ctrl.Rule(lista_negra['medio'] & historial_usuario['antecedentes'], toxicidad['media']),  
+    ctrl.Rule(detoxify['medio'] & historial_usuario['antecedentes'],    toxicidad['media']),  
 
     # ── BAJA ───────────────────────────────────────────────────
     ctrl.Rule(CONICET['nulo'] & detoxify['nulo'] & lista_negra['nulo'], toxicidad['baja']),
@@ -141,6 +151,12 @@ sistema_control = ctrl.ControlSystem(reglas)
 # ============================================================
 
 def calcular_score_difuso(dens, conicet_score, detox_score, hist, debug=False):
+    """
+    Corre la simulación del sistema de control difuso con los 4 scores
+    de entrada (todos en [0, 1]) y devuelve el score de toxicidad
+    resultante en [0, 1]. Si ninguna regla se activa (fuera de rango
+    de las membresías), devuelve 0.05 como score residual.
+    """
     sim = ctrl.ControlSystemSimulation(sistema_control)
     sim.input['lista_negra']       = dens
     sim.input['CONICET']           = conicet_score
@@ -186,6 +202,7 @@ def calcular_score_difuso(dens, conicet_score, detox_score, hist, debug=False):
         return 0.05
 
 def decidir_accion(score):
+    """Mapea un score de toxicidad a la acción de moderación correspondiente, según UMBRALES."""
     if score < UMBRALES['ignorar']:
         return 'ignorar'
     elif score < UMBRALES['alertar']:
@@ -209,6 +226,7 @@ TITULOS = {
 }
 
 def graficar_membresias(ruta='membresias.png', mostrar=True):
+    """Grafica las funciones de membresía de las 5 variables del sistema y guarda la imagen en `ruta`."""
     fig, axes = plt.subplots(nrows=2, ncols=3, figsize=(15, 8))
     fig.suptitle('Funciones de Membresía del Sistema Difuso', fontsize=14)
 
@@ -258,6 +276,7 @@ def graficar_membresias(ruta='membresias.png', mostrar=True):
 # ============================================================
 
 def _cat_dominante(var_obj, cfg_key, valor):
+    """Devuelve (categoría, grado de membresía) de mayor pertenencia para `valor` en la variable difusa `var_obj`."""
     best, best_mu = None, -1.0
     for cat in CONFIG[cfg_key]:
         mu = fuzz.interp_membership(var_obj.universe, var_obj[cat].mf, valor)
@@ -267,6 +286,7 @@ def _cat_dominante(var_obj, cfg_key, valor):
     return best, round(best_mu, 2)
 
 def etiquetar_inputs(dens, conicet_score, detox_score, hist):
+    """Devuelve, para cada variable de entrada, su (categoría, grado de membresía) dominante."""
     return {
         'lista_negra':       _cat_dominante(lista_negra,       'lista_negra',       dens),
         'CONICET':           _cat_dominante(CONICET,           'CONICET',           conicet_score),
@@ -275,4 +295,5 @@ def etiquetar_inputs(dens, conicet_score, detox_score, hist):
     }
 
 def etiquetar_output(score):
+    """Devuelve (categoría, grado de membresía) dominante de toxicidad para el score final."""
     return _cat_dominante(toxicidad, 'toxicidad', score)

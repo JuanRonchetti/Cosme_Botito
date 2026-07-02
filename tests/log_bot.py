@@ -1,3 +1,13 @@
+"""
+log_bot.py
+----------
+Bot de Discord que escucha cada mensaje del servidor, lo puntúa con
+el sistema difuso (src/scoring.py) y responde con el detalle del
+análisis más botones para que el propio autor califique la categoría
+esperada (retroalimentación guardada en logs/testing.csv). Al iniciar
+y al cerrar corre el pipeline de análisis académico de src/analisis.py.
+"""
+
 import matplotlib
 matplotlib.use('Agg')  # backend sin GUI, antes de importar pyplot o scoring
 
@@ -5,9 +15,16 @@ import discord
 import csv
 import os
 import re
+import sys
 import unicodedata
 from datetime import datetime
 import time as _time
+
+# El script vive en tests/; agregamos la raíz del proyecto a sys.path
+# (para "from src..." ) y hacemos chdir ahí (para rutas relativas config/, logs/, .env).
+_RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _RAIZ)
+os.chdir(_RAIZ)
 
 from src.scoring import calcular_score_difuso, graficar_membresias, etiquetar_inputs, etiquetar_output
 from src.analisis import grafico_validacion, grafico_confusion_roc, grafico_sensibilidad, grafico_tiempos, leer_csv, analizar_testing
@@ -29,6 +46,7 @@ os.makedirs("logs", exist_ok=True)
 ruta_patrones = "config/patrones.txt"
 
 def _cargar_patrones():
+    """Lee config/patrones.txt y devuelve las líneas no vacías ni comentadas."""
     with open(ruta_patrones, "r", encoding="utf-8") as f:
         return [
             line.strip() for line in f
@@ -64,6 +82,7 @@ HEADERS_LEGACY = [
 ]
 
 def inicializar_csv():
+    """Crea ARCHIVO_LOG si no existe, o migra sus filas al schema HEADERS actual si le faltan columnas."""
     if not os.path.exists(ARCHIVO_LOG):
         with open(ARCHIVO_LOG, "w", newline="", encoding="utf-8") as f:
             csv.DictWriter(f, fieldnames=HEADERS).writeheader()
@@ -102,6 +121,7 @@ def inicializar_csv():
     print(f"  [CSV] Migrado en el lugar: {len(rows)} filas preservadas, columnas nuevas: {headers_faltantes}")
 
 def guardar_log(row):
+    """Agrega una fila al CSV de log de mensajes."""
     with open(ARCHIVO_LOG, "a", newline="", encoding="utf-8") as f:
         csv.DictWriter(f, fieldnames=HEADERS).writerow(row)
 
@@ -124,11 +144,13 @@ HEADERS_TESTING = [
 ]
 
 def inicializar_testing_csv():
+    """Crea ARCHIVO_TESTING con su header si todavía no existe."""
     if not os.path.exists(ARCHIVO_TESTING):
         with open(ARCHIVO_TESTING, "w", newline="", encoding="utf-8") as f:
             csv.DictWriter(f, fieldnames=HEADERS_TESTING).writeheader()
 
 def guardar_testing(row):
+    """Agrega una fila de feedback de usuario al CSV de testing."""
     with open(ARCHIVO_TESTING, "a", newline="", encoding="utf-8") as f:
         csv.DictWriter(f, fieldnames=HEADERS_TESTING).writerow(row)
 
@@ -137,6 +159,7 @@ def guardar_testing(row):
 # ============================================================
 
 def normalizar(texto):
+    """Pasa a minúsculas, quita acentos, revierte leetspeak básico y colapsa letras repetidas."""
     texto = texto.lower()
     texto = ''.join(
         c for c in unicodedata.normalize('NFD', texto)
@@ -149,6 +172,7 @@ def normalizar(texto):
     return texto
 
 def detectar_patrones_detallado(texto_norm):
+    """Calcula matches, longitud y densidad (real y normalizada) de lista negra para texto_norm."""
     palabras  = texto_norm.split()
     longitud  = max(len(palabras), 1)
     matches   = [p for p in PATRONES if re.search(p, texto_norm)]
@@ -157,6 +181,7 @@ def detectar_patrones_detallado(texto_norm):
     return matches, longitud, dens_real, dens_norm
 
 def decidir_accion(score):
+    """Mapea un score de toxicidad a la acción de moderación correspondiente."""
     if score < 0.30:  return "ignorar"
     if score < 0.55:  return "alertar"
     if score < 0.75:  return "borrar_y_alertar"
@@ -168,6 +193,7 @@ def decidir_accion(score):
 # ============================================================
 
 def analisis_inicial():
+    """Genera membresías y validación del sistema difuso antes de arrancar el bot."""
     print("=== Analisis inicial ===")
     graficar_membresias(ruta='logs/01_membresias.png', mostrar=False)
     grafico_validacion()
@@ -175,6 +201,7 @@ def analisis_inicial():
 
 
 def analizar_post():
+    """Genera confusión/ROC, sensibilidad, tiempos y confusión de testing al cerrar el bot."""
     print("\n=== Analisis post-ejecucion ===")
     filas = leer_csv(ARCHIVO_LOG)
     if not filas:
@@ -213,6 +240,8 @@ _CAT_EMOJI = {"baja": "🟢", "media": "🟡", "alta": "🔴"}
 # ============================================================
 
 class ToxicidadView(discord.ui.View):
+    """Botones (baja/media/alta) para que el autor de un mensaje confirme su categoría real de toxicidad."""
+
     def __init__(self, autor_id, datos):
         super().__init__(timeout=600)
         self.autor_id = autor_id
@@ -249,6 +278,7 @@ class ToxicidadView(discord.ui.View):
 
 
 async def _analizar_y_loguear(message, tipo):
+    """Puntúa un mensaje, lo guarda en los CSVs de log/testing y responde con el detalle + botones de feedback."""
     contenido = message.content
     if not contenido.strip():
         return

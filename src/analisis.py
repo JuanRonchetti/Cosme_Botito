@@ -1,3 +1,12 @@
+"""
+analisis.py
+-----------
+Gráficos académicos del sistema difuso: membresías, validación contra
+casos de referencia, matriz de confusión + ROC sobre logs reales,
+sensibilidad analítica, tiempos de respuesta y confusión sobre el
+feedback de testing.csv. Consumido por main.py y por analizar.py.
+"""
+
 import matplotlib
 matplotlib.use('Agg')
 
@@ -33,6 +42,7 @@ CASOS_VALIDACION = [
 # ============================================================
 
 def leer_csv(archivo=ARCHIVO_LOG_DEFAULT):
+    """Lee un CSV con header y devuelve su contenido como lista de dicts, o [] si no existe."""
     if not os.path.exists(archivo):
         return []
     with open(archivo, "r", encoding="utf-8") as f:
@@ -43,6 +53,7 @@ def leer_csv(archivo=ARCHIVO_LOG_DEFAULT):
 # ============================================================
 
 def grafico_validacion(directorio='logs'):
+    """Corre CASOS_VALIDACION contra el sistema difuso y grafica score obtenido vs esperado (RMSE/MAE)."""
     print("Validando sistema difuso con casos de referencia...")
     nombres, obtenidos, esperados, errores = [], [], [], []
 
@@ -105,6 +116,7 @@ def grafico_validacion(directorio='logs'):
 # ============================================================
 
 def grafico_confusion_roc(filas, directorio='logs'):
+    """Grafica matriz de confusión binaria, métricas y curva ROC sobre las filas de mensajes.csv que tienen score_esperado."""
     etiquetados = [f for f in filas if f.get("score_esperado") not in ("", None)]
     if len(etiquetados) < 5:
         print(f"  Confusion/ROC: solo {len(etiquetados)} mensajes etiquetados (minimo 5).")
@@ -208,6 +220,7 @@ def grafico_confusion_roc(filas, directorio='logs'):
 # ============================================================
 
 def grafico_sensibilidad(directorio='logs'):
+    """Varía cada variable de entrada por separado (con las demás fijas) y grafica su efecto sobre la toxicidad."""
     print("  Calculando sensibilidad analitica...")
     x = np.linspace(0.0, 1.0, 50)
 
@@ -261,6 +274,7 @@ def grafico_sensibilidad(directorio='logs'):
 # ============================================================
 
 def grafico_tiempos(filas, directorio='logs'):
+    """Grafica distribución, box plot y serie temporal de los tiempos de procesamiento (tiempo_ms) del log."""
     tiempos = []
     for f in filas:
         t = f.get("tiempo_ms", "")
@@ -363,6 +377,7 @@ ARCHIVO_TESTING_DEFAULT = "logs/testing.csv"
 
 
 def grafico_confusion_testing(filas_testing, directorio='logs', nombre='06_confusion_testing.png'):
+    """Grafica matriz de confusión 3x3 y métricas por clase a partir del feedback de usuario en testing.csv."""
     validos = [
         f for f in filas_testing
         if f.get('cat_difusa') in CATS_TOXICIDAD and f.get('cat_esperada') in CATS_TOXICIDAD
@@ -432,6 +447,7 @@ def grafico_confusion_testing(filas_testing, directorio='logs', nombre='06_confu
 
 
 def analizar_testing(archivo=ARCHIVO_TESTING_DEFAULT, directorio='logs'):
+    """Lee testing.csv y genera su gráfico de confusión, si hay suficientes muestras calificadas."""
     print(f"\n=== Analisis de testing ({archivo}) ===")
     os.makedirs(directorio, exist_ok=True)
     filas = leer_csv(archivo)

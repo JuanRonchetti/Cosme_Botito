@@ -1,10 +1,11 @@
 config/
-logs/
-tests/
+logs/old
+logs/optimizacion
+logs/data/dataset_results.csv
+tests/debug/
 documentation/ag_optimizacion.ipynb
 .env
 *.db
-membresias.png
 IDEAS_A_FUTURO.md
 optimizar_membresias.py
 __pycache__/

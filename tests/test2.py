@@ -1,3 +1,11 @@
+"""
+test2.py
+--------
+Prueba manual del pipeline lista_negra + hate speech (pysentimiento):
+normaliza un puñado de mensajes de ejemplo, corre detectar_patrones y
+score_hate_speech sobre cada uno, e imprime los resultados por consola.
+"""
+
 from pysentimiento import create_analyzer
 import re
 import re
@@ -17,6 +25,7 @@ PATRONES = cargar_patrones("config/patrones.txt")
 analyzer = create_analyzer(task="hate_speech", lang="es")
 
 def normalizar(texto):
+    """Pasa a minúsculas, quita acentos, revierte leetspeak básico y colapsa letras repetidas."""
     texto = texto.lower()
 
     texto = ''.join(
@@ -39,7 +48,7 @@ def normalizar(texto):
     return texto
 
 def score_hate_speech(texto):
-    #print("ANALIZANDO:  [{}]".format(texto)) 
+    """Devuelve la máxima probabilidad entre las clases hateful/targeted/aggressive de pysentimiento."""
     resultado = analyzer.predict(texto)
     hateful = resultado.probas["hateful"]
     targeted = resultado.probas["targeted"]
@@ -47,21 +56,21 @@ def score_hate_speech(texto):
     prob_hateful = max(hateful, targeted, aggressive)
     return prob_hateful  # número entre 0 y 1
 
-texto1 = "P3dazo de boludoooooooo"
+texto1 = "sos un pes4d000 de primera"
 print("ANALIZANDO:  ", texto1)
 texto1_normalizado = normalizar(texto1)
 print("NORMALIZADO:  ", texto1_normalizado)
 print("DETECTAR PATRONES:  ", detectar_patrones(texto1_normalizado, PATRONES))
 print("SCORE HATE SPEECH:  ", score_hate_speech(texto1_normalizado))
 
-texto2 = "s3x000 gratis"
+texto2 = "prem10s gr4tis aca"
 print("ANALIZANDO:  ", texto2)
 texto2_normalizado = normalizar(texto2)
 print("NORMALIZADO:  ", texto2_normalizado)
 print("DETECTAR PATRONES:  ", detectar_patrones(texto2_normalizado, PATRONES))
 print("SCORE HATE SPEECH:  ", score_hate_speech(texto2_normalizado))
 
-texto3 = "te voy a llenar de semen"
+texto3 = "te voy a hacer la vida imposible"
 print("ANALIZANDO:  ", texto3)
 texto3_normalizado = normalizar(texto3)
 print("NORMALIZADO:  ", texto3_normalizado)

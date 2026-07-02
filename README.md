@@ -31,7 +31,7 @@ Mensaje de texto
                 ▼
       ┌────────────────────┐
       │  Sistema Difuso    │  (skfuzzy, funciones trapezoidales)
-      │  22 reglas if-then │
+      │                    │
       └────────────────────┘
                 │
                 ▼
@@ -66,23 +66,24 @@ Las membresías son trapezoidales y configurables en `src/scoring.py → CONFIG`
 
 ```
 Cosme_Botito/
-├── main.py                    # Bot Discord — evento por mensaje, UI de botones
-├── analizar.py                # CLI de análisis: mensajes.csv + testing.csv + --rescore
-├── analizar_dataset.py        # Evalúa config/dataset.csv (700 msgs etiquetados)
-├── optimizar_membresias.py    # AG: optimiza parámetros de membresía de toxicidad
-├── optimizar_pesos_reglas.py  # AG: optimiza pesos de las 22 reglas difusas
+├── scripts/
+│   ├── analizar.py                # CLI de análisis: mensajes.csv + testing.csv + --rescore
+│   ├── analizar_dataset.py        # Evalúa config/dataset.csv (700 msgs etiquetados)
+│   ├── optimizar_membresias.py    # AG: optimiza parámetros de membresía de toxicidad
+│   └── optimizar_pesos_reglas.py  # AG: optimiza pesos de las reglas difusas
 │
 ├── src/
 │   ├── scoring.py     # Sistema difuso + CONFIG + reglas + etiquetar_inputs/output
 │   ├── modelos.py     # Lazy loading de Detoxify y BERT CONICET
+│   ├── detection.py   # Detección de lista negra (normalización + patrones)
 │   └── analisis.py    # Gráficos académicos (membresías, validación, confusion, ROC, tiempos)
 │
-├── config/
+├── tests/
+│   └── log_bot.py     # Bot Discord — evento por mensaje, UI de botones
+│
+└── config/
 │   ├── patrones.txt   # Patrones regex de palabras ofensivas (uno por línea)
 │   └── dataset.csv    # 700 mensajes etiquetados (mensaje,cat_esperada), sin header
-│
-└── documentation/
-    └── ag_optimizacion.ipynb         # Notebook descriptivo del algoritmo genetico de optimizacion
 ```
 
 ---

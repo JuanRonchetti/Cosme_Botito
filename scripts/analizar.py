@@ -17,12 +17,16 @@ import argparse
 import csv
 import os
 import re
+import sys
 import unicodedata
 from datetime import datetime
 from pathlib import Path
 
-# Asegura que los imports de src/ funcionen desde cualquier directorio
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+# El script vive en scripts/; agregamos la raíz del proyecto a sys.path
+# (para "from src..." ) y hacemos chdir ahí (para rutas relativas config/, logs/).
+_RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _RAIZ)
+os.chdir(_RAIZ)
 
 from src.analisis import (
     analizar_todo, analizar_testing,
@@ -30,17 +34,19 @@ from src.analisis import (
 )
 
 # ============================================================
-# UTILIDADES DE TEXTO  (mismas que main.py)
+# UTILIDADES DE TEXTO  (mismas que tests/log_bot.py)
 # ============================================================
 
 _ruta_patrones = Path('config/patrones.txt')
 
 def _cargar_patrones():
+    """Lee config/patrones.txt y devuelve las líneas no vacías ni comentadas."""
     with open(_ruta_patrones, 'r', encoding='utf-8') as f:
         return [line.strip() for line in f
                 if line.strip() and not line.strip().startswith('#')]
 
 def _normalizar(texto):
+    """Pasa a minúsculas, quita acentos, revierte leetspeak básico y colapsa letras repetidas."""
     texto = texto.lower()
     texto = ''.join(
         c for c in unicodedata.normalize('NFD', texto)
@@ -51,6 +57,7 @@ def _normalizar(texto):
     return re.sub(r'(.)\1{2,}', r'\1', texto)
 
 def _detectar(texto_norm, patrones):
+    """Devuelve (densidad_real, densidad_normalizada) de lista negra para texto_norm."""
     palabras  = texto_norm.split()
     longitud  = max(len(palabras), 1)
     matches   = [p for p in patrones if re.search(p, texto_norm)]
@@ -73,6 +80,7 @@ HEADERS_RESCORE = [
 ]
 
 def rescorar_y_analizar(archivo_testing='logs/testing.csv', directorio='logs'):
+    """Re-corre el pipeline de scoring sobre testing.csv con el sistema actual y guarda CSV + gráfico de confusión."""
     from src.scoring import calcular_score_difuso, etiquetar_inputs, etiquetar_output
     from src.modelos import score_conicet, score_detoxify
 

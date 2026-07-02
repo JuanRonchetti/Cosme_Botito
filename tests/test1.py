@@ -1,3 +1,11 @@
+"""
+test1.py
+--------
+Prototipo mínimo de bot de Discord: solo confirma que el cliente se
+conecta y loguea cada mensaje recibido por consola. No hace scoring;
+es el punto de partida sobre el que se construyó main.py / tests/log_bot.py.
+"""
+
 import discord
 
 intents = discord.Intents.default()
@@ -13,13 +21,11 @@ async def on_message(message):
     if message.author.bot:  # ignorar mensajes de otros bots
         return
     
-    texto = message.content  # acá tenés el texto del mensaje
+    texto = message.content
     autor = message.author
     canal = message.channel
-    
-    # acá llamás a tu función de scoring
-    #score = calcular_toxicidad(texto)
-    print(f"[{autor}] **__mandó__** [{texto}] **__en__** [{canal}]") #→ score: {score}")
+
+    print(f"[{autor}] **__mandó__** [{texto}] **__en__** [{canal}]")
 
 print("Ejecutando...")
 bot.run(TOKEN)

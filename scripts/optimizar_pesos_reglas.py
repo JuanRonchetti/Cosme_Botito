@@ -39,7 +39,11 @@ import numpy as np
 import skfuzzy as fuzz
 from skfuzzy import control as ctrl
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+# El script vive en scripts/; agregamos la raíz del proyecto a sys.path
+# (para "from src..." ) y hacemos chdir ahí (para rutas relativas config/, logs/).
+_RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _RAIZ)
+os.chdir(_RAIZ)
 
 # ============================================================
 # CONFIGURACIÓN DEL ALGORITMO GENÉTICO
@@ -75,6 +79,7 @@ RUTA_INCREMENTAL = os.path.join(DIR_SALIDA, "mejor_pesos.txt")
 # ============================================================
 
 def _normalizar(texto):
+    """Pasa a minúsculas, quita acentos, revierte leetspeak básico y colapsa letras repetidas."""
     texto = texto.lower()
     texto = ''.join(
         c for c in unicodedata.normalize('NFD', texto)
@@ -86,11 +91,13 @@ def _normalizar(texto):
 
 
 def _cargar_patrones():
+    """Lee config/patrones.txt y devuelve las líneas no vacías ni comentadas."""
     with open(Path('config/patrones.txt'), 'r', encoding='utf-8') as f:
         return [line.strip() for line in f if line.strip() and not line.strip().startswith('#')]
 
 
 def _detectar(texto_norm, patrones):
+    """Devuelve la densidad normalizada de lista negra para texto_norm."""
     palabras  = texto_norm.split()
     longitud  = max(len(palabras), 1)
     matches   = [p for p in patrones if re.search(p, texto_norm)]
@@ -102,16 +109,18 @@ def _detectar(texto_norm, patrones):
 # CARGAR DATASET (mismo detector de formato que optimizar_membresias.py)
 # ============================================================
 
-_CATS_VALIDAS = ('baja', 'media', 'alta', 'extrema')
+_CATS_VALIDAS = ('baja', 'media', 'alta')
 
 
 def _es_formato_precomputado(ruta):
+    """Devuelve True si el CSV tiene header con lista_negra_score."""
     with open(ruta, 'r', encoding='utf-8') as f:
         primera = f.readline()
     return 'lista_negra_score' in primera
 
 
 def _cargar_precomputado(ruta):
+    """Lee un CSV con header y scores ML ya calculados (columnas *_score) para cada mensaje."""
     filas = []
     with open(ruta, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f)
@@ -133,6 +142,7 @@ def _cargar_precomputado(ruta):
 
 
 def _cargar_y_precomputar(ruta):
+    """Lee mensaje,cat_esperada y calcula scores con los modelos ML (una sola vez)."""
     from src.modelos import score_conicet, score_detoxify
 
     mensajes = []
@@ -263,6 +273,7 @@ N_REGLAS = len(NOMBRES_REGLAS)  # 29
 # ============================================================
 
 def _construir_sistema_con_pesos(pesos):
+    """Crea un ControlSystem con las reglas de scoring.py, aplicando `pesos` (uno por regla) sobre cada consecuente."""
     univ = np.arange(0, 1.01, 0.01)
 
     ln  = ctrl.Antecedent(univ, 'lista_negra')
@@ -317,6 +328,7 @@ def _construir_sistema_con_pesos(pesos):
 
 
 def _score_a_categoria(score, univ, tox_var):
+    """Categoría de mayor membresía para el score dado."""
     best, best_mu = 'baja', -1.0
     for cat in CATS:
         mu = fuzz.interp_membership(univ, tox_var[cat].mf, score)
@@ -331,6 +343,7 @@ def _score_a_categoria(score, univ, tox_var):
 # ============================================================
 
 def evaluar(pesos):
+    """Fitness: accuracy del sistema difuso (con `pesos` aplicados a cada regla) sobre todo el dataset."""
     try:
         sistema, univ, tox_var = _construir_sistema_con_pesos(pesos)
         correctos = 0
@@ -357,6 +370,7 @@ def evaluar(pesos):
 # ============================================================
 
 def guardar_incremental(gen, fitness, pesos):
+    """Sobrescribe RUTA_INCREMENTAL con los mejores pesos encontrados hasta la generación `gen`."""
     with open(RUTA_INCREMENTAL, "w", encoding="utf-8") as f:
         f.write(f"Gen {gen} | Fitness: {fitness:.4f} ({fitness*len(dataset):.0f}/{len(dataset)})\n\n")
         f.write("PESOS_REGLAS = [\n")
@@ -370,6 +384,7 @@ def guardar_incremental(gen, fitness, pesos):
 # ============================================================
 
 def individuo_aleatorio():
+    """Genera un vector de N_REGLAS pesos aleatorios entre PESO_MIN y PESO_MAX."""
     return [random.uniform(PESO_MIN, PESO_MAX) for _ in range(N_REGLAS)]
 
 
@@ -377,12 +392,14 @@ INICIO = [1.0] * N_REGLAS
 
 
 def seleccion_torneo(poblacion, fitnesses):
+    """Selecciona el mejor individuo entre TORNEO_SIZE candidatos aleatorios."""
     candidatos = random.sample(range(len(poblacion)), TORNEO_SIZE)
     mejor = max(candidatos, key=lambda i: fitnesses[i])
     return deepcopy(poblacion[mejor])
 
 
 def cruce(p1, p2):
+    """Cruce de un punto entre dos padres, con probabilidad TASA_CRUCE."""
     if random.random() > TASA_CRUCE:
         return deepcopy(p1), deepcopy(p2)
     punto = random.randint(1, N_REGLAS - 1)
@@ -390,6 +407,7 @@ def cruce(p1, p2):
 
 
 def mutar(ind):
+    """Perturba cada peso con probabilidad TASA_MUTACION, dentro de los límites [PESO_MIN, PESO_MAX]."""
     nuevo = deepcopy(ind)
     for i in range(N_REGLAS):
         if random.random() < TASA_MUTACION:

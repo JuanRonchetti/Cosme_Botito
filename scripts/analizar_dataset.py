@@ -20,13 +20,18 @@ import argparse
 import csv
 import os
 import re
+import sys
 import unicodedata
 from pathlib import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+# El script vive en scripts/; agregamos la raíz del proyecto a sys.path
+# (para "from src..." ) y hacemos chdir ahí (para rutas relativas config/, logs/).
+_RAIZ = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _RAIZ)
+os.chdir(_RAIZ)
 
 from src.scoring import calcular_score_difuso, etiquetar_inputs, etiquetar_output
 from src.modelos import score_conicet, score_detoxify
@@ -57,12 +62,14 @@ _ruta_patrones = Path('config/patrones.txt')
 
 
 def _cargar_patrones():
+    """Lee config/patrones.txt y devuelve las líneas no vacías ni comentadas."""
     with open(_ruta_patrones, 'r', encoding='utf-8') as f:
         return [line.strip() for line in f
                 if line.strip() and not line.strip().startswith('#')]
 
 
 def _normalizar(texto):
+    """Pasa a minúsculas, quita acentos, revierte leetspeak básico y colapsa letras repetidas."""
     texto = texto.lower()
     texto = ''.join(
         c for c in unicodedata.normalize('NFD', texto)
@@ -74,6 +81,7 @@ def _normalizar(texto):
 
 
 def _detectar(texto_norm, patrones):
+    """Devuelve (densidad_real, densidad_normalizada) de lista negra para texto_norm."""
     palabras  = texto_norm.split()
     longitud  = max(len(palabras), 1)
     matches   = [p for p in patrones if re.search(p, texto_norm)]
@@ -107,6 +115,7 @@ def leer_dataset(ruta):
 # ============================================================
 
 def procesar_dataset(filas, patrones):
+    """Corre el pipeline completo de scoring sobre cada fila del dataset y arma la lista de resultados detallados."""
     resultados = []
     n = len(filas)
     print(f"\n  Procesando {n} mensajes...")
@@ -159,6 +168,7 @@ def procesar_dataset(filas, patrones):
 # ============================================================
 
 def imprimir_resumen(resultados):
+    """Imprime accuracy global y recall por categoría a partir de los resultados de procesar_dataset."""
     n         = len(resultados)
     correctos = sum(1 for r in resultados if r['correcto'] == '1')
     accuracy  = correctos / n if n > 0 else 0.0
@@ -190,6 +200,7 @@ def imprimir_resumen(resultados):
 # ============================================================
 
 def grafico_confusion(resultados, directorio):
+    """Grafica la matriz de confusión 3x3 y métricas por clase para los resultados del dataset."""
     nc = len(CATS)
     cm = np.zeros((nc, nc), dtype=int)
     for r in resultados:
